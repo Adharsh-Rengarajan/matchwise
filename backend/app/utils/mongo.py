@@ -7,6 +7,7 @@ def sanitize_document(doc: dict):
 
     clean = {}
     for key, value in doc.items():
+
         if isinstance(value, ObjectId):
             clean[key] = str(value)
 
@@ -21,5 +22,10 @@ def sanitize_document(doc: dict):
 
         else:
             clean[key] = value
+
+    # Convert MongoDB _id → id
+    if "_id" in clean:
+        clean["id"] = clean["_id"]
+        del clean["_id"]
 
     return clean
