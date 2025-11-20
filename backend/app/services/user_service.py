@@ -1,7 +1,7 @@
 from app.database import get_database
 from app.utils.hashing import hash_password, verify_password
 from app.models.user_factory import UserFactory
-
+from bson import ObjectId
 
 class UserService:
 
@@ -46,3 +46,20 @@ class UserService:
             "role": user["role"]
         }
 
+
+    @staticmethod
+    async def get_user_by_id(user_id: str):
+        db = await get_database()
+
+        try:
+            obj_id = ObjectId(user_id)
+        except:
+            return None  
+
+        user = await db.users.find_one({"_id": obj_id})
+        if not user:
+            return None
+
+        user["userId"] = str(user["_id"])
+        del user["_id"]
+        return user

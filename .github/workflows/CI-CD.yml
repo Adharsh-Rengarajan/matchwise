@@ -9,12 +9,12 @@ on:
       - main
 
 jobs:
-  build:
+  backend-tests:
     runs-on: ubuntu-latest
 
     defaults:
       run:
-        working-directory: backend   
+        working-directory: backend
 
     steps:
     - name: Checkout code
@@ -23,10 +23,13 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v4
       with:
-        python-version: "3.11.3"
+        python-version: "3.11"
 
     - name: Install dependencies
       run: |
         pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: Run Tests
+      run: |
+        pytest -q

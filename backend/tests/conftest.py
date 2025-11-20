@@ -1,7 +1,14 @@
+import sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pytest
-from fastapi.testclient import TestClient
+import pytest_asyncio
+from httpx import AsyncClient, ASGITransport
 from app.main import app
 
-@pytest.fixture(scope="session")
-def client():
-    return TestClient(app)
+
+@pytest_asyncio.fixture
+async def client():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac

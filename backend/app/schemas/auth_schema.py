@@ -3,10 +3,6 @@ from datetime import date
 from typing import List, Optional
 
 
-# ============================
-# Shared Nested Models
-# ============================
-
 class Experience(BaseModel):
     title: str
     company: str
@@ -21,18 +17,9 @@ class Education(BaseModel):
     end_date: Optional[date]
 
 
-# ============================
-# Login
-# ============================
-
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
-
-
-# ============================
-# Registration
-# ============================
 
 class RecruiterRegisterRequest(BaseModel):
     email: EmailStr
