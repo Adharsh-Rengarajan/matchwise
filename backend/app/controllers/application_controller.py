@@ -8,66 +8,65 @@ import io
 
 router = APIRouter(prefix="/applications", tags=["Applications"])
 
-
 @router.post("/")
 async def create_application(
     job_id: str = Form(...),
     jobseeker_id: str = Form(...),
-    answers: str = Form(...),  # JSON list of {questionNo, answer}
-    ai_score: int = Form(...),
-    ai_feedback: str = Form(...),
-    keyword_score: int = Form(...),
+    answers: str = Form(...),
     application_status: str = Form(...),
     resume: UploadFile = File(...)
 ):
-    # Parse answers JSON
     try:
         answers_list = json.loads(answers)
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid answers format. Must be JSON.")
+        raise HTTPException(400, "Invalid answers JSON")
 
-    # Fetch job to get its questions
     job = await JobService.get_job_by_id(job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise HTTPException(404, "Job not found")
 
     job_questions = job.get("questions", [])
 
-    # Validation: answers must match job questions
     if len(answers_list) != len(job_questions):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Incorrect number of answers. Expected {len(job_questions)}."
-        )
+        raise HTTPException(400, "Incorrect number of answers")
 
-    # Ensure each answer has a valid questionNo
     job_question_numbers = {q["questionNo"] for q in job_questions}
     payload_question_numbers = {a["questionNo"] for a in answers_list}
 
     if job_question_numbers != payload_question_numbers:
-        raise HTTPException(
-            status_code=400,
-            detail="Answer questionNo mismatch with job questions."
-        )
+        raise HTTPException(400, "Question numbers mismatch")
 
-    # Create application entry
     result = await ApplicationService.create_application(
         job_id,
         jobseeker_id,
-        job_questions,        # original job questions
-        answers_list,         # jobseeker answers
-        ai_score,
-        ai_feedback,
-        keyword_score,
+        job_questions,
+        answers_list,
         application_status,
         resume
     )
 
     if "error" in result:
-        raise HTTPException(status_code=409, detail=result["message"])
+        raise HTTPException(409, result["message"])
 
     return api_response(201, "Application created successfully", result)
 
+@router.post("/preview-score")
+async def preview_score(job_id: str = Form(...), resume: UploadFile = File(...)):
+    try:
+        job = await JobService.get_job_by_id(job_id)
+        if not job:
+            raise HTTPException(404, "Job not found")
+
+        resume_bytes = await resume.read()
+        resume_text = await ApplicationService.extract_text_from_resume(resume_bytes, resume.filename)
+
+        from app.services.matching_strategy import LLMMatchingStrategy
+        match = await LLMMatchingStrategy.generate_match(resume_text, job["description"])
+
+        return api_response(200, "Score generated", match.to_dict())
+
+    except Exception as e:
+        raise HTTPException(500, f"Error generating preview score: {str(e)}")
 
 @router.get("/resume/{file_id}")
 async def get_resume(file_id: str):

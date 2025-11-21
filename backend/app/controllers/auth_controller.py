@@ -5,7 +5,6 @@ from app.utils.response import api_response
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-
 @router.post("/login")
 async def login(credentials: LoginRequest):
     result = await UserService.login(credentials.email, credentials.password)

@@ -2,18 +2,15 @@ import pytest
 from unittest.mock import AsyncMock
 from app.services.user_service import UserService
 
-
 @pytest.mark.asyncio
 async def test_login_success(client, monkeypatch):
-    # Patch the login service directly
     monkeypatch.setattr(
         UserService,
         "login",
         AsyncMock(return_value={
-            "userId": "1",
+            "id": "1",
             "email": "test@example.com",
             "name": "Test User",
-            "phone": "123",
             "role": "jobseeker"
         })
     )
@@ -30,7 +27,6 @@ async def test_login_success(client, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_login_failure(client, monkeypatch):
-    # Simulate login failure
     monkeypatch.setattr(UserService, "login", AsyncMock(return_value=None))
 
     response = await client.post("/auth/login", json={

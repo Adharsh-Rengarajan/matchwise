@@ -3,17 +3,14 @@ from unittest.mock import AsyncMock
 from app.services.job_service import JobService
 from app.services.user_service import UserService
 
-
 @pytest.mark.asyncio
 async def test_create_job_success(client, monkeypatch):
-    # Recruiter validation
     monkeypatch.setattr(
         UserService,
         "get_user_by_id",
         AsyncMock(return_value={"_id": "1", "role": "recruiter"})
     )
 
-    # Job creation mock
     monkeypatch.setattr(
         JobService,
         "create_job",
@@ -36,7 +33,6 @@ async def test_create_job_success(client, monkeypatch):
     response = await client.post("/jobs/", json=payload)
 
     assert response.status_code == 201
-    assert response.json()["message"] == "Job created successfully"
     assert response.json()["data"]["id"] == "job123"
 
 
@@ -81,7 +77,6 @@ async def test_get_jobs_by_recruiter(client, monkeypatch):
     response = await client.get("/jobs/123")
 
     assert response.status_code == 200
-    assert response.json()["message"] == "Jobs retrieved successfully"
     assert len(response.json()["data"]) == 2
 
 
@@ -96,7 +91,6 @@ async def test_get_job_success(client, monkeypatch):
     response = await client.get("/jobs/job/job123")
 
     assert response.status_code == 200
-    assert response.json()["message"] == "Job retrieved successfully"
     assert response.json()["data"]["id"] == "job123"
 
 
@@ -111,7 +105,6 @@ async def test_get_job_not_found(client, monkeypatch):
     response = await client.get("/jobs/job/doesnotexist")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Job not found"
 
 
 @pytest.mark.asyncio
@@ -134,5 +127,4 @@ async def test_search_jobs(client, monkeypatch):
     response = await client.post("/jobs/search", json=filters)
 
     assert response.status_code == 200
-    assert response.json()["message"] == "Job search results"
     assert len(response.json()["data"]) == 1

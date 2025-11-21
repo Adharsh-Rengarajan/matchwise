@@ -3,7 +3,6 @@ from datetime import date
 from typing import List, Optional
 from enum import Enum
 
-
 class JobType(str, Enum):
     FULL_TIME = "Full-Time"
     PART_TIME = "Part-Time"
@@ -11,17 +10,14 @@ class JobType(str, Enum):
     INTERNSHIP = "Internship"
     CO_OP = "Co-op"
 
-
 class JobStatus(str, Enum):
     OPEN = "OPEN"
     HIRING = "HIRING"
     EXPIRED = "EXPIRED"
 
-
 class JobQuestion(BaseModel):
     questionNo: int
     question: str
-
 
 class JobCreateRequest(BaseModel):
     recruiter_id: str
@@ -34,13 +30,11 @@ class JobCreateRequest(BaseModel):
     end_date: Optional[date] = None
     skills_required: List[str]
     status: JobStatus = JobStatus.OPEN
-    questions: List[JobQuestion] = []  # OPTIONAL
-
+    questions: List[JobQuestion] = []
 
 class JobUpdateStatusRequest(BaseModel):
     job_id: str
     status: JobStatus
-
 
 class JobResponse(BaseModel):
     id: str
@@ -56,8 +50,7 @@ class JobResponse(BaseModel):
     status: JobStatus
     created_at: str
     updated_at: str
-    questions: List[JobQuestion]  # INCLUDED in response
-
+    questions: List[JobQuestion]
 
 class FilterRequest(BaseModel):
     title: Optional[str] = None

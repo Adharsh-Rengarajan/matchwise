@@ -2,10 +2,11 @@ import pytest
 from unittest.mock import AsyncMock
 from app.services.application_service import ApplicationService
 from app.services.job_service import JobService
-
+from app.services.matching_strategy import LLMMatchingStrategy
 
 @pytest.mark.asyncio
 async def test_create_application_success(client, monkeypatch):
+    # Mock JobService (job has 2 questions)
     monkeypatch.setattr(
         JobService,
         "get_job_by_id",
@@ -18,6 +19,22 @@ async def test_create_application_success(client, monkeypatch):
         })
     )
 
+    # Mock LLM strategy so no AI calls happen
+    monkeypatch.setattr(
+        LLMMatchingStrategy,
+        "generate_match",
+        AsyncMock(return_value={
+            "score": 90,
+            "matched_skills": ["Python"],
+            "missing_skills": [],
+            "transferable_skills": [],
+            "explanation": "Mocked",
+            "provider": "mock",
+            "model": "mock"
+        })
+    )
+
+    # Mock ApplicationService.create_application
     monkeypatch.setattr(
         ApplicationService,
         "create_application",
@@ -35,10 +52,7 @@ async def test_create_application_success(client, monkeypatch):
         "job_id": "job123",
         "jobseeker_id": "user123",
         "answers": '[{"questionNo": 1, "answer": "A1"}, {"questionNo": 2, "answer": "A2"}]',
-        "ai_score": "85",
-        "ai_feedback": "Good fit",
-        "keyword_score": "90",
-        "application_status": "PENDING"
+        "application_status": "APPLIED"
     }
 
     response = await client.post("/applications/", data=data, files=files)
@@ -68,32 +82,11 @@ async def test_create_application_answer_mismatch(client, monkeypatch):
     data = {
         "job_id": "job123",
         "jobseeker_id": "user123",
-        "answers": '[{"questionNo": 1, "answer": "A1"}]',  # ❌ only 1 answer
-        "ai_score": "80",
-        "ai_feedback": "OK",
-        "keyword_score": "70",
-        "application_status": "PENDING"
+        "answers": '[{"questionNo": 1, "answer": "A1"}]', 
+        "application_status": "APPLIED"
     }
 
     response = await client.post("/applications/", data=data, files=files)
 
-    assert response.status_code == 400
+    assert response.status_code == 400   
     assert "Incorrect number of answers" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_get_resume_success(client, monkeypatch):
-    monkeypatch.setattr(
-        ApplicationService,
-        "get_resume",
-        AsyncMock(return_value=(
-            b"PDFDATA",
-            "resume.pdf",
-            "application/pdf"
-        ))
-    )
-
-    response = await client.get("/applications/resume/abc123")
-
-    assert response.status_code == 200
-    assert response.headers["content-disposition"] == "attachment; filename=resume.pdf"

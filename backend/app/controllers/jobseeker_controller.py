@@ -5,7 +5,6 @@ from app.utils.response import api_response
 
 router = APIRouter(prefix="/jobseekers", tags=["JobSeekers"])
 
-
 @router.post("/register")
 async def register_jobseeker(payload: JobSeekerRegisterRequest):
     try:

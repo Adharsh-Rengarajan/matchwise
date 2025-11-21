@@ -19,7 +19,6 @@ class UserService:
 
         result = await db.users.insert_one(user_dict)
 
-        # Build clean response object
         return {
             "userId": str(result.inserted_id),
             "email": user_dict["email"],
@@ -27,8 +26,6 @@ class UserService:
             "phone": user_dict["phone"],
             "role": user_dict["role"]
         }
-
-
 
     @staticmethod
     async def login(email: str, password: str):
@@ -46,7 +43,6 @@ class UserService:
             "role": user["role"]
         }
 
-
     @staticmethod
     async def get_user_by_id(user_id: str):
         db = await get_database()
@@ -54,7 +50,7 @@ class UserService:
         try:
             obj_id = ObjectId(user_id)
         except:
-            return None  
+            return None
 
         user = await db.users.find_one({"_id": obj_id})
         if not user:

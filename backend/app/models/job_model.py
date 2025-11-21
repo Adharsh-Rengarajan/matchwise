@@ -5,7 +5,6 @@ def convert_date(d):
         return datetime(d.year, d.month, d.day)
     return d
 
-
 class Job:
     def __init__(
         self,
@@ -47,7 +46,7 @@ class Job:
             "end_date": self.end_date,
             "skills_required": self.skills_required,
             "status": self.status,
-            "questions": self.questions,   # NEW FIELD INCLUDED
+            "questions": self.questions,
             "created_at": self.created_at,
             "updated_at": self.updated_at
         }
