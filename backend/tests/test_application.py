@@ -1,87 +1,99 @@
 import pytest
 from unittest.mock import AsyncMock
 from app.services.application_service import ApplicationService
-from app.services.user_service import UserService
+from app.services.job_service import JobService
 
 
 @pytest.mark.asyncio
 async def test_create_application_success(client, monkeypatch):
-    # Mock jobseeker validation
     monkeypatch.setattr(
-        UserService,
-        "get_user_by_id",
-        AsyncMock(return_value={"_id": "123", "role": "jobseeker"})
+        JobService,
+        "get_job_by_id",
+        AsyncMock(return_value={
+            "id": "job123",
+            "questions": [
+                {"questionNo": 1, "question": "Q1"},
+                {"questionNo": 2, "question": "Q2"}
+            ]
+        })
     )
 
-    # Mock create_application response
     monkeypatch.setattr(
         ApplicationService,
         "create_application",
-        AsyncMock(return_value={"id": "app1", "job_id": "j1"})
+        AsyncMock(return_value={
+            "id": "app123",
+            "job_id": "job123",
+            "jobseeker_id": "user123"
+        })
     )
 
-    response = await client.post("/applications/", json={
-        "job_id": "j1",
-        "jobseeker_id": "u1",
-        "questions": [{"questionNo": 1, "question": "Why?"}],
-        "ai_score": 85,
-        "ai_feedback": "Strong answer",
-        "keyword_score": 90,
-        "application_status": "APPLIED"
-    })
+    resume_bytes = b"fake resume"
+    files = {"resume": ("resume.pdf", resume_bytes, "application/pdf")}
+
+    data = {
+        "job_id": "job123",
+        "jobseeker_id": "user123",
+        "answers": '[{"questionNo": 1, "answer": "A1"}, {"questionNo": 2, "answer": "A2"}]',
+        "ai_score": "85",
+        "ai_feedback": "Good fit",
+        "keyword_score": "90",
+        "application_status": "PENDING"
+    }
+
+    response = await client.post("/applications/", data=data, files=files)
 
     assert response.status_code == 201
-    assert response.json()["message"] == "Application created"
+    assert response.json()["message"] == "Application created successfully"
+    assert response.json()["data"]["id"] == "app123"
 
 
 @pytest.mark.asyncio
-async def test_create_application_invalid_user(client, monkeypatch):
-    # Mock a recruiter returned instead of jobseeker
+async def test_create_application_answer_mismatch(client, monkeypatch):
     monkeypatch.setattr(
-        UserService,
-        "get_user_by_id",
-        AsyncMock(return_value={"_id": "1", "role": "recruiter"})
+        JobService,
+        "get_job_by_id",
+        AsyncMock(return_value={
+            "id": "job123",
+            "questions": [
+                {"questionNo": 1, "question": "Q1"},
+                {"questionNo": 2, "question": "Q2"}
+            ]
+        })
     )
 
-    response = await client.post("/applications/", json={
-        "job_id": "j1",
-        "jobseeker_id": "u1",
-        "questions": [],
-        "ai_score": 70,
+    resume_bytes = b"dummy"
+    files = {"resume": ("resume.pdf", resume_bytes, "application/pdf")}
+
+    data = {
+        "job_id": "job123",
+        "jobseeker_id": "user123",
+        "answers": '[{"questionNo": 1, "answer": "A1"}]',  # ❌ only 1 answer
+        "ai_score": "80",
         "ai_feedback": "OK",
-        "keyword_score": 65,
-        "application_status": "APPLIED"
-    })
+        "keyword_score": "70",
+        "application_status": "PENDING"
+    }
 
-    assert response.status_code == 403
+    response = await client.post("/applications/", data=data, files=files)
 
-
-@pytest.mark.asyncio
-async def test_get_application_success(client, monkeypatch):
-    monkeypatch.setattr(
-        ApplicationService,
-        "get_application",
-        AsyncMock(return_value={"id": "app1", "job_id": "j1"})
-    )
-
-    response = await client.get("/applications/application/app1")
-
-    assert response.status_code == 200
-    assert response.json()["data"]["id"] == "app1"
+    assert response.status_code == 400
+    assert "Incorrect number of answers" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
-async def test_update_status_success(client, monkeypatch):
+async def test_get_resume_success(client, monkeypatch):
     monkeypatch.setattr(
         ApplicationService,
-        "update_application_status",
-        AsyncMock(return_value={"id": "app1", "application_status": "UNDER_REVIEW"})
+        "get_resume",
+        AsyncMock(return_value=(
+            b"PDFDATA",
+            "resume.pdf",
+            "application/pdf"
+        ))
     )
 
-    response = await client.patch("/applications/", json={
-        "application_id": "app1",
-        "application_status": "UNDER_REVIEW"
-    })
+    response = await client.get("/applications/resume/abc123")
 
     assert response.status_code == 200
-    assert response.json()["data"]["application_status"] == "UNDER_REVIEW"
+    assert response.headers["content-disposition"] == "attachment; filename=resume.pdf"
