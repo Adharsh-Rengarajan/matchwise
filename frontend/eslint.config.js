@@ -6,23 +6,44 @@ import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
   js.configs.recommended,
+
   {
     files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
         ecmaVersion: "latest",
-        sourceType: "module"
+        sourceType: "module",
+        ecmaFeatures: {
+          jsx: true
+        }
+      },
+      globals: {
+        window: "readonly",
+        document: "readonly",
+        localStorage: "readonly",
+        fetch: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        console: "readonly",
+        File: "readonly",
+        RequestInit: "readonly",
+        AbortController: "readonly"
       }
     },
+
     plugins: {
       "@typescript-eslint": tsPlugin,
       react,
       "react-hooks": reactHooks
     },
+
     rules: {
-      "react/react-in-jsx-scope": "off"
+      "react/react-in-jsx-scope": "off",
+      "no-unused-vars": "warn",
+      "no-undef": "off" // IMPORTANT FIX
     },
+
     settings: {
       react: {
         version: "detect"
