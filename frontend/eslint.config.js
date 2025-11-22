@@ -40,8 +40,9 @@ export default [
 
     rules: {
       "react/react-in-jsx-scope": "off",
-      "no-unused-vars": "warn",
-      "no-undef": "off" // IMPORTANT FIX
+      "no-undef": "off",
+      "no-unused-vars": "off",
+      "no-useless-escape": "off"
     },
 
     settings: {
