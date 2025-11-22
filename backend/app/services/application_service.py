@@ -40,11 +40,9 @@ class ApplicationService:
         file_id = await fs.upload_from_stream(resume_file.filename, resume_bytes)
         resume_text = await ApplicationService.extract_text_from_resume(resume_bytes, resume_file.filename)
 
-        # Get job description for matching
         job = await db.jobs.find_one({"_id": ObjectId(job_id)})
         job_description = job["description"]
 
-        # Generate AI match result
         match_result = await LLMMatchingStrategy.generate_match(resume_text, job_description)
 
         data = {
@@ -67,12 +65,44 @@ class ApplicationService:
         return sanitize_document(data)
 
     @staticmethod
+    async def get_application_by_id(application_id: str):
+        db = await get_database()
+        application = await db.applications.find_one({"_id": ObjectId(application_id)})
+        if application:
+            return sanitize_document(application)
+        return None
+
+    @staticmethod
+    async def update_application_status(application_id: str, status: str):
+        db = await get_database()
+        
+        result = await db.applications.find_one_and_update(
+            {"_id": ObjectId(application_id)},
+            {
+                "$set": {
+                    "application_status": status,
+                    "updated_at": datetime.utcnow()
+                }
+            },
+            return_document=True
+        )
+        
+        if result:
+            return sanitize_document(result)
+        return None
+
+    @staticmethod
     async def add_note(application_id, note: dict):
         db = await get_database()
 
+        note["created_at"] = note.get("created_at", datetime.utcnow().isoformat())
+
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
-            {"$push": {"notes": note}}
+            {
+                "$push": {"notes": note},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
         )
 
         updated = await db.applications.find_one({"_id": ObjectId(application_id)})
@@ -91,3 +121,14 @@ class ApplicationService:
         content_type = "application/pdf" if filename.lower().endswith(".pdf") else "application/octet-stream"
 
         return data, filename, content_type
+    
+    @staticmethod
+    async def get_applications_by_jobseeker(jobseeker_id: str):
+        db = await get_database()
+        applications = []
+        cursor = db.applications.find({"jobseeker_id": jobseeker_id})
+        
+        async for application in cursor:
+            applications.append(sanitize_document(application))
+        
+        return applications

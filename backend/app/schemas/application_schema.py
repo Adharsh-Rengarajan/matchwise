@@ -1,29 +1,43 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import Optional, List, Dict, Any
+from datetime import datetime
 
-VALID_STATUSES = {"PENDING", "APPLIED", "UNDER_REVIEW", "INTERVIEWING", "REJECTED"}
+class ApplicationNote(BaseModel):
+    recruiter_id: str
+    note: str
+    created_at: Optional[str] = None
 
-class Answer(BaseModel):
+class MatchResult(BaseModel):
+    score: float
+    matched_skills: Optional[List[str]] = []
+    missing_skills: Optional[List[str]] = []
+    transferable_skills: Optional[List[str]] = []
+    explanation: Optional[str] = None
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    generated_at: Optional[str] = None
+
+class ApplicationQuestion(BaseModel):
+    questionNo: int
+    question: str
+
+class ApplicationAnswer(BaseModel):
     questionNo: int
     answer: str
 
 class ApplicationCreateRequest(BaseModel):
     job_id: str
     jobseeker_id: str
-    answers: List[Answer]
-    ai_score: int = Field(..., ge=1, le=100)
-    ai_feedback: str
-    keyword_score: int = Field(..., ge=1, le=100)
-    application_status: str = Field(...)
+    resume_file_id: str
+    questions: Optional[List[ApplicationQuestion]] = []
+    answers: Optional[List[ApplicationAnswer]] = []
+    match_result: Optional[MatchResult] = None
+    resume_text: Optional[str] = None
 
-    def validate_status(self):
-        if self.application_status not in VALID_STATUSES:
-            raise ValueError("Invalid application status.")
+class ApplicationUpdateRequest(BaseModel):
+    application_status: Optional[str] = None
+    notes: Optional[List[ApplicationNote]] = None
+    match_result: Optional[MatchResult] = None
 
-class ApplicationStatusUpdateRequest(BaseModel):
-    application_id: str
-    application_status: str
-
-    def validate_status(self):
-        if self.application_status not in VALID_STATUSES:
-            raise ValueError("Invalid application status.")
+class ApplicationStatusUpdate(BaseModel):
+    application_status: str = Field(..., pattern="^(APPLIED|REVIEWING|SHORTLISTED|INTERVIEW|OFFER|HIRED|REJECTED)$")
