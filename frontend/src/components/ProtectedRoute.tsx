@@ -10,7 +10,6 @@ const ProtectedRoute = ({ children, userType }: ProtectedRouteProps) => {
   const user = JSON.parse(localStorage.getItem("user") || "{}")
   const storedUserType = localStorage.getItem("userType")
 
-  // 🔥 Accept ANY id format: id, _id, userId
   const userId = user.id || user._id || user.userId
 
   const isAuthenticated = !!userId
