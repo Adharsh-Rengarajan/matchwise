@@ -1,44 +1,54 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Response
 from typing import Optional, List
 from app.services.application_service import ApplicationService
+from app.services.job_service import JobService
 from app.utils.response import api_response
 from bson import ObjectId
 import json
 
 router = APIRouter(prefix="/applications", tags=["Applications"])
 
-@router.post("")
+@router.post("/")
 async def create_application(
     job_id: str = Form(...),
     jobseeker_id: str = Form(...),
-    job_questions: str = Form(...),
     answers: str = Form(...),
     application_status: str = Form("APPLIED"),
-    resume_file: UploadFile = File(...)
+    resume: UploadFile = File(...)
 ):
     try:
-        job_questions_list = json.loads(job_questions)
+        job = await JobService.get_job_by_id(job_id)
+        if not job:
+            raise HTTPException(404, "Job not found")
+        
+        job_questions = job.get("questions", [])
+        
         answers_list = json.loads(answers)
+        
+        if len(answers_list) != len(job_questions):
+            raise HTTPException(400, f"Incorrect number of answers. Expected {len(job_questions)}, got {len(answers_list)}")
         
         application = await ApplicationService.create_application(
             job_id, 
             jobseeker_id, 
-            job_questions_list, 
+            job_questions, 
             answers_list, 
             application_status, 
-            resume_file
+            resume
         )
         
         if application.get("error"):
             raise HTTPException(400, application.get("message"))
             
         return api_response(201, "Application created successfully", application)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+    except HTTPException:
+        raise
+    except json.JSONDecodeError:
+        raise HTTPException(400, "Invalid JSON format for answers")
     except Exception as e:
         raise HTTPException(500, f"Error creating application: {str(e)}")
 
-@router.get("/{application_id}")
+@router.get("/{application_id}/")
 async def get_application(application_id: str):
     try:
         if not ObjectId.is_valid(application_id):
@@ -54,7 +64,7 @@ async def get_application(application_id: str):
     except Exception as e:
         raise HTTPException(500, f"Error fetching application: {str(e)}")
 
-@router.patch("/{application_id}")
+@router.patch("/{application_id}/")
 async def update_application_status(application_id: str, payload: dict):
     try:
         if not ObjectId.is_valid(application_id):
@@ -79,7 +89,7 @@ async def update_application_status(application_id: str, payload: dict):
     except Exception as e:
         raise HTTPException(500, f"Error updating application: {str(e)}")
 
-@router.get("/resume/{file_id}")
+@router.get("/resume/{file_id}/")
 async def get_resume(file_id: str):
     try:
         if not ObjectId.is_valid(file_id):
@@ -97,7 +107,7 @@ async def get_resume(file_id: str):
     except Exception as e:
         raise HTTPException(500, f"Error fetching resume: {str(e)}")
 
-@router.post("/{application_id}/notes")
+@router.post("/{application_id}/notes/")
 async def add_note(application_id: str, payload: dict):
     try:
         if not ObjectId.is_valid(application_id):
@@ -121,7 +131,7 @@ async def add_note(application_id: str, payload: dict):
     except Exception as e:
         raise HTTPException(500, f"Error adding note: {str(e)}")
 
-@router.get("/jobseeker/{jobseeker_id}")
+@router.get("/jobseeker/{jobseeker_id}/")
 async def get_applications_by_jobseeker(jobseeker_id: str):
     try:
         applications = await ApplicationService.get_applications_by_jobseeker(jobseeker_id)
