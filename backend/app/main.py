@@ -7,7 +7,7 @@ from app.controllers.jobseeker_controller import router as jobseeker_router
 from app.controllers.job_controller import router as job_router
 from app.controllers.application_controller import router as application_router
 from app.controllers.user_controller import router as user_router
-
+from app.controllers.message_controller import router as message_router
 from app.utils.response import api_response
 
 app = FastAPI(title="MatchWise", version="1.0.0")
@@ -26,6 +26,7 @@ app.include_router(recruiter_router)
 app.include_router(jobseeker_router)
 app.include_router(application_router)
 app.include_router(user_router)
+app.include_router(message_router)
 
 @app.get("/")
 async def root():

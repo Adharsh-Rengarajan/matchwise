@@ -7,3 +7,5 @@ class MessageSchema(BaseModel):
     content: str
     message_type: str = "text"
     job_context: Optional[str] = None
+    application_id: Optional[str] = None
+    isOpened: bool = False
