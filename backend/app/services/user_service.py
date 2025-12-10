@@ -49,13 +49,41 @@ class UserService:
 
         try:
             obj_id = ObjectId(user_id)
-        except:
-            return None
+        except Exception as e:
+            raise Exception(f"Invalid user ID: {str(e)}")
 
         user = await db.users.find_one({"_id": obj_id})
         if not user:
             return None
 
-        user["userId"] = str(user["_id"])
-        del user["_id"]
-        return user
+        name = user.get("name")
+        if name is None:
+            name = "Unknown"
+        if not isinstance(name, str):
+            name = str(name)
+            
+        email = user.get("email")
+        if email is None:
+            email = ""
+        if not isinstance(email, str):
+            email = str(email)
+            
+        phone = user.get("phone")
+        if phone is None:
+            phone = ""
+        if not isinstance(phone, str):
+            phone = str(phone)
+            
+        role = user.get("role")
+        if role is None:
+            role = "jobseeker"
+        if not isinstance(role, str):
+            role = str(role)
+
+        return {
+            "userId": str(user["_id"]),
+            "email": email,
+            "name": name,
+            "phone": phone,
+            "role": role
+        }

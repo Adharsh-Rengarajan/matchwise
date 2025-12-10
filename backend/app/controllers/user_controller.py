@@ -8,10 +8,12 @@ router = APIRouter(prefix="/users", tags=["Users"])
 async def get_user_by_id(user_id: str):
     try:
         user = await UserService.get_user_by_id(user_id)
+        
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
         return api_response(200, "User retrieved successfully", user)
+        
     except HTTPException:
         raise
     except Exception as e:
