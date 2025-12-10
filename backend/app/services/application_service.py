@@ -92,23 +92,6 @@ class ApplicationService:
         return None
 
     @staticmethod
-    async def add_note(application_id, note: dict):
-        db = await get_database()
-
-        note["created_at"] = note.get("created_at", datetime.utcnow().isoformat())
-
-        await db.applications.update_one(
-            {"_id": ObjectId(application_id)},
-            {
-                "$push": {"notes": note},
-                "$set": {"updated_at": datetime.utcnow()}
-            }
-        )
-
-        updated = await db.applications.find_one({"_id": ObjectId(application_id)})
-        return sanitize_document(updated)
-
-    @staticmethod
     async def get_resume(file_id: str):
         db = await get_database()
         fs = AsyncIOMotorGridFSBucket(db)
@@ -132,3 +115,78 @@ class ApplicationService:
             applications.append(sanitize_document(application))
         
         return applications
+    
+    @staticmethod
+    async def add_note(application_id, note: dict):
+        db = await get_database()
+        from datetime import datetime
+        from bson import ObjectId
+        from app.utils.mongo import sanitize_document
+
+        note_id = str(ObjectId())
+        note_data = {
+            "note_id": note_id,
+            "recruiter_id": note.get("recruiter_id"),
+            "note": note.get("note"),
+            "created_at": datetime.utcnow().isoformat()
+        }
+
+        await db.applications.update_one(
+            {"_id": ObjectId(application_id)},
+            {
+                "$push": {"notes": note_data},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+
+        updated = await db.applications.find_one({"_id": ObjectId(application_id)})
+        return sanitize_document(updated)
+
+    @staticmethod
+    async def delete_note(application_id: str, note_id: str):
+        db = await get_database()
+        from datetime import datetime
+        from bson import ObjectId
+        from app.utils.mongo import sanitize_document
+
+        result = await db.applications.find_one_and_update(
+            {"_id": ObjectId(application_id)},
+            {
+                "$pull": {
+                    "notes": {
+                        "note_id": note_id
+                    }
+                },
+                "$set": {"updated_at": datetime.utcnow()}
+            },
+            return_document=True
+        )
+        
+        if result:
+            return sanitize_document(result)
+        return None
+
+    @staticmethod
+    async def update_note(application_id: str, note_id: str, new_note: str):
+        db = await get_database()
+        from datetime import datetime
+        from bson import ObjectId
+        from app.utils.mongo import sanitize_document
+        
+        result = await db.applications.find_one_and_update(
+            {
+                "_id": ObjectId(application_id),
+                "notes.note_id": note_id
+            },
+            {
+                "$set": {
+                    "notes.$.note": new_note,
+                    "updated_at": datetime.utcnow()
+                }
+            },
+            return_document=True
+        )
+        
+        if result:
+            return sanitize_document(result)
+        return None
