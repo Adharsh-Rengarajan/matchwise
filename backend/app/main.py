@@ -6,6 +6,7 @@ from app.controllers.recruiter_controller import router as recruiter_router
 from app.controllers.jobseeker_controller import router as jobseeker_router
 from app.controllers.job_controller import router as job_router
 from app.controllers.application_controller import router as application_router
+from app.controllers import user_controller
 
 from app.utils.response import api_response
 
@@ -24,6 +25,7 @@ app.include_router(auth_router)
 app.include_router(recruiter_router)
 app.include_router(jobseeker_router)
 app.include_router(application_router)
+app.include_router(user_controller.router)
 
 @app.get("/")
 async def root():
