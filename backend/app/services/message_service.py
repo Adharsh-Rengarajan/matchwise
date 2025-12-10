@@ -1,7 +1,7 @@
 from datetime import datetime
+from bson import ObjectId
 from app.database import get_database
 from app.utils.mongo import sanitize_document
-from bson import ObjectId
 
 class MessageService:
 
@@ -9,10 +9,10 @@ class MessageService:
     async def send_message(data: dict):
         db = await get_database()
         data["created_at"] = datetime.utcnow()
-        data["_id"] = ObjectId()
+        data["isOpened"] = False
 
         result = await db.messages.insert_one(data)
-        data["_id"] = str(result.inserted_id)
+        data["_id"] = result.inserted_id
 
         return sanitize_document(data)
 
@@ -31,55 +31,115 @@ class MessageService:
 
     @staticmethod
     async def get_conversations_for_recruiter(recruiter_id: str):
-        """Get all conversations for a recruiter grouped by candidates"""
         db = await get_database()
-        
-        cursor = db.messages.find({
-            "receiver_id": recruiter_id
-        }).sort("created_at", -1)
 
-        messages = [sanitize_document(m) async for m in cursor]
-        
-        conversations = {}
-        for msg in messages:
-            key = f"{msg['sender_id']}_{msg.get('application_id', '')}"
-            if key not in conversations:
-                # Fetch user and job details
-                try:
-                    candidate_data = await db.users.find_one({"_id": ObjectId(msg["sender_id"])})
-                    job_data = await db.jobs.find_one({"_id": ObjectId(msg.get("job_context", ""))})
-                except:
-                    candidate_data = None
-                    job_data = None
-                
-                conversations[key] = {
-                    "candidateId": msg["sender_id"][:2].upper() if len(msg["sender_id"]) >= 2 else "C",
-                    "candidateName": candidate_data.get("name", "Unknown") if candidate_data else "Unknown",
-                    "candidateUserId": msg["sender_id"],
-                    "applicationId": msg.get("application_id", ""),
-                    "jobId": msg.get("job_context", ""),
-                    "jobTitle": job_data.get("title", "Unknown Job") if job_data else "Unknown Job",
-                    "messages": [],
-                    "lastMessage": msg["content"],
-                    "timestamp": msg["created_at"].isoformat(),
-                    "unread": not msg.get("isOpened", False)
+        pipeline = [
+            {
+                "$match": {
+                    "$or": [
+                        {"sender_id": recruiter_id},
+                        {"receiver_id": recruiter_id}
+                    ]
                 }
-            conversations[key]["messages"].append(msg)
+            },
+            {
+                "$sort": {"created_at": -1}
+            },
+            {
+                "$group": {
+                    "_id": {
+                        "$cond": [
+                            {"$eq": ["$sender_id", recruiter_id]},
+                            "$receiver_id",
+                            "$sender_id"
+                        ]
+                    },
+                    "lastMessage": {"$first": "$content"},
+                    "lastMessageTime": {"$first": "$created_at"},
+                    "unreadCount": {
+                        "$sum": {
+                            "$cond": [
+                                {
+                                    "$and": [
+                                        {"$eq": ["$receiver_id", recruiter_id]},
+                                        {"$eq": ["$isOpened", False]}
+                                    ]
+                                },
+                                1,
+                                0
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "jobseekers",
+                    "localField": "_id",
+                    "foreignField": "_id",
+                    "as": "jobseekerData"
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "recruiters",
+                    "localField": "_id",
+                    "foreignField": "_id",
+                    "as": "recruiterData"
+                }
+            },
+            {
+                "$project": {
+                    "_id": 1,
+                    "participantName": {
+                        "$cond": [
+                            {"$gt": [{"$size": "$jobseekerData"}, 0]},
+                            {"$arrayElemAt": ["$jobseekerData.full_name", 0]},
+                            {"$arrayElemAt": ["$recruiterData.company_name", 0]}
+                        ]
+                    },
+                    "lastMessage": 1,
+                    "timestamp": "$lastMessageTime",
+                    "unread": {"$gt": ["$unreadCount", 0]},
+                    "jobTitle": {
+                        "$cond": [
+                            {"$gt": [{"$size": "$jobseekerData"}, 0]},
+                            "Job Seeker",
+                            "Recruiter"
+                        ]
+                    },
+                    "avatarColor": {
+                        "$arrayElemAt": [
+                            ["#3b82f6", "#ec4899", "#8b5cf6", "#f59e0b", "#10b981"],
+                            {"$mod": [{"$toInt": {"$substr": ["$_id", 0, 2]}}, 5]}
+                        ]
+                    }
+                }
+            },
+            {
+                "$sort": {"timestamp": -1}
+            }
+        ]
 
-        return list(conversations.values())
+        result = await db.messages.aggregate(pipeline).to_list(None)
+        return [sanitize_document(conv) for conv in result]
 
     @staticmethod
     async def mark_messages_as_read(sender_id: str, receiver_id: str):
-        """Mark all unread messages as read"""
         db = await get_database()
-        
+
         result = await db.messages.update_many(
             {
                 "sender_id": sender_id,
                 "receiver_id": receiver_id,
                 "isOpened": False
             },
-            {"$set": {"isOpened": True}}
+            {
+                "$set": {"isOpened": True, "opened_at": datetime.utcnow()}
+            }
         )
 
-        return {"modified_count": result.modified_count}
+        return {
+            "modified_count": result.modified_count,
+            "matched_count": result.matched_count
+        }

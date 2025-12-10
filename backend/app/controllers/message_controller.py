@@ -1,9 +1,7 @@
-
 from fastapi import APIRouter, HTTPException
 from app.schemas.message_schema import MessageSchema
 from app.services.message_service import MessageService
 from app.utils.response import api_response
-from bson import ObjectId
 
 router = APIRouter(prefix="/messages", tags=["Messages"])
 
@@ -15,26 +13,8 @@ async def send_message(payload: MessageSchema):
     except Exception as e:
         raise HTTPException(500, f"Error sending message: {str(e)}")
 
-@router.get("/{user1}/{user2}")
-async def get_conversation(user1: str, user2: str):
-    try:
-        msgs = await MessageService.get_conversation(user1, user2)
-        return api_response(200, "Conversation retrieved", msgs)
-    except Exception as e:
-        raise HTTPException(500, f"Error retrieving conversation: {str(e)}")
-
-@router.get("/recruiter/{recruiter_id}")
-async def get_recruiter_conversations(recruiter_id: str):
-    """Get all conversations for a recruiter with candidate details"""
-    try:
-        conversations = await MessageService.get_conversations_for_recruiter(recruiter_id)
-        return api_response(200, "Conversations retrieved", conversations)
-    except Exception as e:
-        raise HTTPException(500, f"Error retrieving conversations: {str(e)}")
-
 @router.patch("/mark-read")
 async def mark_as_read(payload: dict):
-    """Mark messages as read"""
     try:
         sender_id = payload.get("sender_id")
         receiver_id = payload.get("receiver_id")
@@ -48,3 +28,19 @@ async def mark_as_read(payload: dict):
         raise
     except Exception as e:
         raise HTTPException(500, f"Error marking messages as read: {str(e)}")
+
+@router.get("/recruiter/{recruiter_id}")
+async def get_recruiter_conversations(recruiter_id: str):
+    try:
+        conversations = await MessageService.get_conversations_for_recruiter(recruiter_id)
+        return api_response(200, "Conversations retrieved", conversations)
+    except Exception as e:
+        raise HTTPException(500, f"Error retrieving conversations: {str(e)}")
+
+@router.get("/{user1}/{user2}")
+async def get_conversation(user1: str, user2: str):
+    try:
+        msgs = await MessageService.get_conversation(user1, user2)
+        return api_response(200, "Conversation retrieved", msgs)
+    except Exception as e:
+        raise HTTPException(500, f"Error retrieving conversation: {str(e)}")
