@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import '../styles/jobseeker-messages.css'
+import styles from '../styles/jobseeker-messages.module.css'
 
 interface Message {
   id: string
@@ -193,63 +193,63 @@ const JobSeekerMessages = () => {
   )
 
   return (
-    <div className="jobseeker-messages">
-      <div className="messages-container">
-        <div className="conversations-panel">
-          <div className="panel-header">
+    <div className={styles.jobseekerMessages}>
+      <div className={styles.messagesContainer}>
+        <div className={styles.conversationsPanel}>
+          <div className={styles.panelHeader}>
             <h2>Messages</h2>
             <p>Communicate with recruiters</p>
           </div>
 
-          <div className="search-bar">
+          <div className={styles.searchBar}>
             <input
               type="text"
               placeholder="Search messages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
+              className={styles.searchInput}
             />
           </div>
 
-          <div className="conversations-list">
+          <div className={styles.conversationsList}>
             {filteredConversations.map((conv) => (
               <div
                 key={conv.id}
-                className={`conversation-item ${selectedConversation?.id === conv.id ? 'active' : ''}`}
+                className={`${styles.conversationItem} ${selectedConversation?.id === conv.id ? styles.active : ''}`}
                 onClick={() => setSelectedConversation(conv)}
               >
-                <div className="avatar">
+                <div className={styles.avatar}>
                   {getInitials(conv.recruiter_name)}
                 </div>
-                <div className="conversation-info">
-                  <div className="conversation-header">
+                <div className={styles.conversationInfo}>
+                  <div className={styles.conversationHeader}>
                     <h4>{conv.recruiter_name}</h4>
-                    <span className="time">{conv.last_message_time}</span>
+                    <span className={styles.time}>{conv.last_message_time}</span>
                   </div>
-                  <p className="job-position">{conv.job_title} at {conv.company}</p>
-                  <p className="last-message">{conv.last_message}</p>
+                  <p className={styles.jobPosition}>{conv.job_title} at {conv.company}</p>
+                  <p className={styles.lastMessage}>{conv.last_message}</p>
                 </div>
                 {conv.unread_count > 0 && (
-                  <div className="unread-badge">{conv.unread_count}</div>
+                  <div className={styles.unreadBadge}>{conv.unread_count}</div>
                 )}
               </div>
             ))}
           </div>
         </div>
 
-        <div className="chat-panel">
+        <div className={styles.chatPanel}>
           {selectedConversation ? (
             <>
-              <div className="chat-header">
-                <div className="avatar-small">
+              <div className={styles.chatHeader}>
+                <div className={styles.avatarSmall}>
                   {getInitials(selectedConversation.recruiter_name)}
                 </div>
-                <div className="header-info">
+                <div className={styles.headerInfo}>
                   <h3>{selectedConversation.recruiter_name}</h3>
                   <p>{selectedConversation.job_title} at {selectedConversation.company}</p>
                 </div>
                 <button 
-                  className="ai-suggestions-btn"
+                  className={styles.aiSuggestionsBtn}
                   onClick={() => setShowAISuggestions(!showAISuggestions)}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="#5b5fc7">
@@ -259,15 +259,15 @@ const JobSeekerMessages = () => {
                 </button>
               </div>
 
-              <div className="messages-list">
+              <div className={styles.messagesList}>
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`message ${message.sender_type === 'jobseeker' ? 'sent' : 'received'}`}
+                    className={`${styles.message} ${message.sender_type === 'jobseeker' ? styles.sent : styles.received}`}
                   >
-                    <div className="message-content">
+                    <div className={styles.messageContent}>
                       <p>{message.content}</p>
-                      <span className="message-time">{message.timestamp}</span>
+                      <span className={styles.messageTime}>{message.timestamp}</span>
                     </div>
                   </div>
                 ))}
@@ -275,13 +275,13 @@ const JobSeekerMessages = () => {
               </div>
 
               {showAISuggestions && (
-                <div className="ai-suggestions">
+                <div className={styles.aiSuggestions}>
                   <h4>AI Suggested Responses</h4>
-                  <div className="suggestions-grid">
+                  <div className={styles.suggestionsGrid}>
                     {aiSuggestions.map((suggestion, index) => (
                       <button
                         key={index}
-                        className="suggestion-item"
+                        className={styles.suggestionItem}
                         onClick={() => {
                           setNewMessage(suggestion)
                           setShowAISuggestions(false)
@@ -294,17 +294,17 @@ const JobSeekerMessages = () => {
                 </div>
               )}
 
-              <div className="message-input-container">
+              <div className={styles.messageInputContainer}>
                 <textarea
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Type your message..."
-                  className="message-input"
+                  className={styles.messageInput}
                   rows={2}
                 />
                 <button
-                  className="send-button"
+                  className={styles.sendButton}
                   onClick={handleSendMessage}
                   disabled={!newMessage.trim()}
                 >
@@ -316,7 +316,7 @@ const JobSeekerMessages = () => {
               </div>
             </>
           ) : (
-            <div className="no-conversation">
+            <div className={styles.noConversation}>
               <svg width="80" height="80" viewBox="0 0 24 24" fill="#d1d5db">
                 <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H6L4 18V4H20V16Z"/>
               </svg>
@@ -330,4 +330,4 @@ const JobSeekerMessages = () => {
   )
 }
 
-export default JobSeekerMessages
+export default JobSeekerMessages;

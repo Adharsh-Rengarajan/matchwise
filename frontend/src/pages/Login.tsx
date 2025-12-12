@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { API_ENDPOINTS, APP_CONFIG, apiRequest } from '../config/api'
-import '../styles/login.css'
+import styles from '../styles/login.module.css'
 
 const Login = () => {
   const navigate = useNavigate()
   const [userType, setUserType] = useState<'recruiter' | 'jobseeker'>('recruiter')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -29,23 +28,14 @@ const Login = () => {
       if (response.ok && data.data) {
         const backendUser = data.data
 
-        // 🔥 Normalize all possible id formats
         const normalizedUser = {
           ...backendUser,
           id: backendUser.id || backendUser._id || backendUser.userId,
         }
 
-        // Save normalized user object
         localStorage.setItem("user", JSON.stringify(normalizedUser))
-
-        // Save actual backend role
         localStorage.setItem("userType", backendUser.role)
 
-        if (rememberMe && APP_CONFIG.ENABLE_REMEMBER_ME) {
-          localStorage.setItem("rememberMe", "true")
-        }
-
-        // Redirect based on backend role
         if (backendUser.role === "recruiter") {
           navigate("/recruiter/dashboard")
         } else {
@@ -63,29 +53,27 @@ const Login = () => {
   }
 
   return (
-    <div className="login-page">
-
-      <Link to="/" className="back-home-link">
-        <svg width="20" height="20" viewBox="0 0 24 24">
+    <div className={styles.loginPage}>
+      <Link to="/" className={styles.backHomeLink}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M19 12H5M5 12L12 19M5 12L12 5" />
         </svg>
         Back to Home
       </Link>
 
-      <div className="login-container">
-        <div className="login-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24">
+      <div className={styles.loginContainer}>
+        <div className={styles.loginIcon}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
             <path d="M20 6H10L8 2H2V18H10L12 22H20V6Z" />
           </svg>
         </div>
 
-        <h1 className="login-title">{APP_CONFIG.NAME}</h1>
-        <p className="login-subtitle">{APP_CONFIG.TAGLINE}</p>
+        <h1 className={styles.loginTitle}>{APP_CONFIG.NAME}</h1>
+        <p className={styles.loginSubtitle}>{APP_CONFIG.TAGLINE}</p>
 
-        {/* UI-only toggle */}
-        <div className="user-type-toggle">
+        <div className={styles.userTypeToggle}>
           <button
-            className={`toggle-option ${userType === 'recruiter' ? 'active' : ''}`}
+            className={`${styles.toggleOption} ${userType === 'recruiter' ? styles.active : ''}`}
             onClick={() => setUserType('recruiter')}
             type="button"
           >
@@ -93,7 +81,7 @@ const Login = () => {
           </button>
 
           <button
-            className={`toggle-option ${userType === 'jobseeker' ? 'active' : ''}`}
+            className={`${styles.toggleOption} ${userType === 'jobseeker' ? styles.active : ''}`}
             onClick={() => setUserType('jobseeker')}
             type="button"
           >
@@ -101,10 +89,10 @@ const Login = () => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="login-form">
-          {error && <div className="error-message">{error}</div>}
+        <form onSubmit={handleSubmit} className={styles.loginForm}>
+          {error && <div className={styles.errorMessage}>{error}</div>}
 
-          <div className="form-group">
+          <div className={styles.formGroup}>
             <label>Email</label>
             <input
               type="email"
@@ -114,7 +102,7 @@ const Login = () => {
             />
           </div>
 
-          <div className="form-group">
+          <div className={styles.formGroup}>
             <label>Password</label>
             <input
               type="password"
@@ -124,37 +112,22 @@ const Login = () => {
             />
           </div>
 
-          {APP_CONFIG.ENABLE_REMEMBER_ME && (
-            <div className="form-options">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                Remember me
-              </label>
-              <Link to="/forgot-password">Forgot Password?</Link>
-            </div>
-          )}
-
           <button
             type="submit"
-            className="login-button"
+            className={styles.loginButton}
             disabled={isLoading}
           >
             {isLoading ? "Logging in..." : "Login"}
           </button>
         </form>
 
-        <p className="signup-prompt">
+        <p className={styles.signupPrompt}>
           Don't have an account?{" "}
-          <Link to="/register" className="signup-link">Sign up</Link>
+          <Link to="/register" className={styles.signupLink}>Sign up</Link>
         </p>
       </div>
-
     </div>
   )
 }
 
-export default Login
+export default Login;

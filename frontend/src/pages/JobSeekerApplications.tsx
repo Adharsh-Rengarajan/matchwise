@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_ENDPOINTS, apiRequest } from '../config/api'
-import '../styles/jobseeker-applications.css'
+import styles from '../styles/jobseeker-applications.module.css'
 
 interface Application {
   id: string
@@ -41,6 +41,21 @@ const JobSeekerApplications = () => {
     filterAndSortApplications()
   }, [applications, filterStatus, sortBy])
 
+  const fetchCompanyName = async (recruiterId: string): Promise<string> => {
+    try {
+      const response = await apiRequest(
+        `${API_ENDPOINTS.LOGIN.split('/auth')[0]}/users/${recruiterId}`
+      )
+      if (response.ok) {
+        const data = await response.json()
+        return data.data?.company || 'Company'
+      }
+    } catch (error) {
+      console.error('Failed to fetch company name:', error)
+    }
+    return 'Company'
+  }
+
   const fetchApplications = async () => {
     try {
       setIsLoading(true)
@@ -51,16 +66,20 @@ const JobSeekerApplications = () => {
         const data = await response.json()
         const applicationsList = data.data || []
         
-        // Fetch job details for each application
         const applicationsWithJobs = await Promise.all(
           applicationsList.map(async (app: any) => {
             try {
               const jobResponse = await apiRequest(API_ENDPOINTS.GET_JOB_BY_ID(app.job_id))
               let jobData = null
+              let companyName = 'Company'
               
               if (jobResponse.ok) {
                 const job = await jobResponse.json()
                 jobData = job.data
+                
+                if (jobData?.recruiter_id) {
+                  companyName = await fetchCompanyName(jobData.recruiter_id)
+                }
               }
               
               return {
@@ -73,7 +92,7 @@ const JobSeekerApplications = () => {
                 match_result: app.match_result,
                 job: jobData ? {
                   title: jobData.title,
-                  company: jobData.company,
+                  company: companyName,
                   location: jobData.location,
                   salary_range: jobData.salary_range
                 } : undefined
@@ -168,42 +187,42 @@ const JobSeekerApplications = () => {
 
   if (isLoading) {
     return (
-      <div className="loading-state">
-        <div className="spinner"></div>
+      <div className={styles.loadingState}>
+        <div className={styles.spinner}></div>
         <p>Loading applications...</p>
       </div>
     )
   }
 
   return (
-    <div className="jobseeker-applications">
-      <div className="applications-header">
+    <div className={styles.jobseekerApplications}>
+      <div className={styles.applicationsHeader}>
         <div>
           <h1>My Applications</h1>
           <p>Track and manage your job applications</p>
         </div>
-        <div className="header-stats">
-          <div className="stat">
-            <span className="stat-value">{applications.length}</span>
-            <span className="stat-label">Total</span>
+        <div className={styles.headerStats}>
+          <div className={styles.stat}>
+            <span className={styles.statValue}>{applications.length}</span>
+            <span className={styles.statLabel}>Total</span>
           </div>
-          <div className="stat">
-            <span className="stat-value">
+          <div className={styles.stat}>
+            <span className={styles.statValue}>
               {applications.filter(a => a.application_status === 'INTERVIEW').length}
             </span>
-            <span className="stat-label">Interviews</span>
+            <span className={styles.statLabel}>Interviews</span>
           </div>
-          <div className="stat">
-            <span className="stat-value">
+          <div className={styles.stat}>
+            <span className={styles.statValue}>
               {applications.filter(a => ['APPLIED', 'REVIEWING'].includes(a.application_status)).length}
             </span>
-            <span className="stat-label">Pending</span>
+            <span className={styles.statLabel}>Pending</span>
           </div>
         </div>
       </div>
 
-      <div className="applications-filters">
-        <div className="filter-group">
+      <div className={styles.applicationsFilters}>
+        <div className={styles.filterGroup}>
           <label>Status</label>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
             <option value="all">All Applications</option>
@@ -216,7 +235,7 @@ const JobSeekerApplications = () => {
             <option value="REJECTED">Not Selected</option>
           </select>
         </div>
-        <div className="filter-group">
+        <div className={styles.filterGroup}>
           <label>Sort By</label>
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
             <option value="recent">Most Recent</option>
@@ -225,38 +244,38 @@ const JobSeekerApplications = () => {
         </div>
       </div>
 
-      <div className="applications-list">
+      <div className={styles.applicationsList}>
         {filteredApplications.length > 0 ? (
           filteredApplications.map((application) => (
-            <div key={application.id} className="application-card">
-              <div className="application-header">
-                <div className="job-info">
+            <div key={application.id} className={styles.applicationCard}>
+              <div className={styles.applicationHeader}>
+                <div className={styles.jobInfo}>
                   <h3>{application.job?.title || 'Job Position'}</h3>
-                  <div className="company-info">
-                    <span className="company">{application.job?.company || 'Company'}</span>
-                    <span className="separator">•</span>
-                    <span className="location">{application.job?.location || 'Location'}</span>
+                  <div className={styles.companyInfo}>
+                    <span className={styles.company}>{application.job?.company || 'Company'}</span>
+                    <span className={styles.separator}>•</span>
+                    <span className={styles.location}>{application.job?.location || 'Location'}</span>
                   </div>
-                  <div className="salary-info">
+                  <div className={styles.salaryInfo}>
                     {application.job?.salary_range && 
                       formatSalary(application.job.salary_range.min, application.job.salary_range.max)
                     }
                   </div>
                 </div>
-                <div className="application-meta">
-                  <div className="match-score">
-                    <div className="score-circle">
-                      <span className="score-value">{application.match_result?.score || 0}%</span>
+                <div className={styles.applicationMeta}>
+                  <div className={styles.matchScore}>
+                    <div className={styles.scoreCircle}>
+                      <span className={styles.scoreValue}>{application.match_result?.score || 0}%</span>
                     </div>
-                    <span className="score-label">Match</span>
+                    <span className={styles.scoreLabel}>Match</span>
                   </div>
                 </div>
               </div>
 
-              <div className="application-body">
-                <div className="status-timeline">
+              <div className={styles.applicationBody}>
+                <div className={styles.statusTimeline}>
                   <div 
-                    className="status-badge"
+                    className={styles.statusBadge}
                     style={{ 
                       backgroundColor: `${getStatusColor(application.application_status)}20`,
                       color: getStatusColor(application.application_status),
@@ -265,29 +284,29 @@ const JobSeekerApplications = () => {
                   >
                     {getStatusText(application.application_status)}
                   </div>
-                  <div className="timeline-info">
-                    <p className="applied-date">Applied {getTimeSince(application.created_at)}</p>
+                  <div className={styles.timelineInfo}>
+                    <p className={styles.appliedDate}>Applied {getTimeSince(application.created_at)}</p>
                     {application.updated_at !== application.created_at && (
-                      <p className="updated-date">Last updated {getTimeSince(application.updated_at)}</p>
+                      <p className={styles.updatedDate}>Last updated {getTimeSince(application.updated_at)}</p>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="application-actions">
+              <div className={styles.applicationActions}>
                 <button 
-                  className="btn-view"
+                  className={styles.btnView}
                   onClick={() => handleViewDetails(application.job_id)}
                 >
                   View Job Details
                 </button>
                 {application.application_status === 'INTERVIEW' && (
-                  <button className="btn-prepare">
+                  <button className={styles.btnPrepare}>
                     Prepare for Interview
                   </button>
                 )}
                 {application.application_status === 'OFFER' && (
-                  <button className="btn-offer">
+                  <button className={styles.btnOffer}>
                     View Offer
                   </button>
                 )}
@@ -295,7 +314,7 @@ const JobSeekerApplications = () => {
             </div>
           ))
         ) : (
-          <div className="empty-state">
+          <div className={styles.emptyState}>
             <svg width="64" height="64" viewBox="0 0 24 24" fill="#d1d5db">
               <path d="M19 3H14.82C14.4 1.84 13.3 1 12 1S9.6 1.84 9.18 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3Z"/>
             </svg>
@@ -311,4 +330,4 @@ const JobSeekerApplications = () => {
   )
 }
 
-export default JobSeekerApplications
+export default JobSeekerApplications;

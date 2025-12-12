@@ -1,228 +1,316 @@
-import { useState } from 'react'
-import '../styles/messages.css'
+import { useState, useEffect, useRef } from 'react'
+import styles from '../styles/messages.module.css'
+import { API_ENDPOINTS, apiRequest } from '../config/api'
+import { sendMessage } from '../utils/sendMessage'
 
-interface Message {
-  id: string
-  candidateName: string
-  candidateId: string
-  jobTitle: string
+interface Conversation {
+  _id: string
+  participantName: string
+  jobTitle?: string
   lastMessage: string
   timestamp: string
-  unread: boolean
-  messages: Array<{
-    sender: 'candidate' | 'recruiter'
-    content: string
-    timestamp: string
-  }>
+  unreadCount: number
+  avatarColor: string
+}
+
+interface Message {
+  _id: string
+  sender_id: string
+  receiver_id: string
+  content: string
+  created_at: string
+  isOpened: boolean
 }
 
 const Messages = () => {
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [messageInput, setMessageInput] = useState('')
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [newMessage, setNewMessage] = useState('')
-  
-  const mockConversations: Message[] = [
-    {
-      id: '1',
-      candidateName: 'Sarah Johnson',
-      candidateId: 'SJ',
-      jobTitle: 'Senior Frontend Developer',
-      lastMessage: 'Thank you for considering my application!',
-      timestamp: '2m ago',
-      unread: true,
-      messages: [
-        {
-          sender: 'candidate',
-          content: "Hi! I applied for the Senior Frontend Developer position.",
-          timestamp: '10:30 AM'
-        },
-        {
-          sender: 'recruiter',
-          content: "Hello Sarah! Thank you for applying. Your profile looks impressive.",
-          timestamp: '10:32 AM'
-        },
-        {
-          sender: 'candidate',
-          content: "Thank you! I have 7 years of experience with React and TypeScript.",
-          timestamp: '10:35 AM'
-        },
-        {
-          sender: 'recruiter',
-          content: "Great! Would you be available for a technical interview next week?",
-          timestamp: '10:40 AM'
-        },
-        {
-          sender: 'candidate',
-          content: "Yes, I am available. What day works best for you?",
-          timestamp: '10:42 AM'
-        },
-        {
-          sender: 'candidate',
-          content: "Thank you for considering my application!",
-          timestamp: '10:45 AM'
-        }
-      ]
-    },
-    {
-      id: '2',
-      candidateName: 'Michael Chen',
-      candidateId: 'MC',
-      jobTitle: 'Product Manager',
-      lastMessage: 'I would love to discuss the role further',
-      timestamp: '1h ago',
-      unread: false,
-      messages: [
-        {
-          sender: 'candidate',
-          content: "I would love to discuss the role further",
-          timestamp: '9:00 AM'
-        }
-      ]
-    },
-    {
-      id: '3',
-      candidateName: 'Emily Rodriguez',
-      candidateId: 'ER',
-      jobTitle: 'UX Designer',
-      lastMessage: 'When would be a good time for an interview?',
-      timestamp: '3h ago',
-      unread: true,
-      messages: [
-        {
-          sender: 'candidate',
-          content: "When would be a good time for an interview?",
-          timestamp: '7:30 AM'
-        }
-      ]
-    },
-    {
-      id: '4',
-      candidateName: 'David Kim',
-      candidateId: 'DK',
-      jobTitle: 'Backend Engineer',
-      lastMessage: 'I have experience with similar projects',
-      timestamp: '1d ago',
-      unread: false,
-      messages: [
-        {
-          sender: 'candidate',
-          content: "I have experience with similar projects",
-          timestamp: 'Yesterday'
-        }
-      ]
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const token = localStorage.getItem('token')
+  const userId = user._id || user.id
+
+  useEffect(() => {
+    fetchConversations()
+  }, [])
+
+  useEffect(() => {
+    if (selectedConversationId) {
+      fetchMessages(selectedConversationId)
+      markAsRead(selectedConversationId)
     }
-  ]
-  
-  const filteredConversations = mockConversations.filter(conv =>
-    conv.candidateName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.jobTitle.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-  
-  const selectedConv = mockConversations.find(c => c.id === selectedConversation)
-  
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedConv) return
-    
-    console.log('Sending message:', newMessage)
-    setNewMessage('')
+  }, [selectedConversationId])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const generateColorFromString = (str: string): string => {
+    const colors = [
+      '#3B82F6',
+      '#EF4444',
+      '#10B981',
+      '#F59E0B',
+      '#8B5CF6',
+      '#EC4899',
+      '#06B6D4',
+      '#F97316'
+    ]
+    if (!str) return colors[0]
+    const hash = str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    return colors[hash % colors.length]
   }
-  
+
+  const extractParticipantName = (conv: any): string => {
+    if (conv.participantName && conv.participantName.trim()) {
+      return conv.participantName
+    }
+    if (conv.jobseekerData?.[0]?.full_name) {
+      return conv.jobseekerData[0].full_name
+    }
+    if (conv.recruiterData?.[0]?.full_name) {
+      return conv.recruiterData[0].full_name
+    }
+    if (conv.full_name && conv.full_name.trim()) {
+      return conv.full_name
+    }
+    return 'Unknown'
+  }
+
+  const fetchConversations = async () => {
+    try {
+      setLoading(true)
+      const response = await apiRequest(
+        API_ENDPOINTS.GET_RECRUITER_CONVERSATIONS(userId),
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      )
+      const data = await response.json()
+
+      const conversationList: Conversation[] = (data.data || []).map((conv: any) => {
+        const participantName = extractParticipantName(conv)
+        const lastMsg = conv.lastMessage?.trim() ? conv.lastMessage : 'No messages yet'
+        const jobTitle = conv.jobTitle || ''
+
+        return {
+          _id: conv._id,
+          participantName,
+          jobTitle,
+          lastMessage: lastMsg,
+          timestamp: conv.timestamp || new Date().toISOString(),
+          unreadCount: conv.unreadCount || 0,
+          avatarColor: generateColorFromString(participantName)
+        }
+      })
+
+      setConversations(conversationList)
+      setLoading(false)
+    } catch (error) {
+      console.error('Error fetching conversations:', error)
+      setLoading(false)
+    }
+  }
+
+  const fetchMessages = async (otherUserId: string) => {
+    try {
+      const response = await apiRequest(
+        API_ENDPOINTS.GET_CONVERSATION(userId, otherUserId),
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      )
+      const data = await response.json()
+      setMessages(data.data || [])
+    } catch (error) {
+      console.error('Error fetching messages:', error)
+    }
+  }
+
+  const markAsRead = async (otherUserId: string) => {
+    try {
+      await apiRequest(
+        API_ENDPOINTS.MARK_MESSAGES_READ,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            sender_id: otherUserId,
+            receiver_id: userId
+          })
+        }
+      )
+    } catch (error) {
+      console.error('Error marking as read:', error)
+    }
+  }
+
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !selectedConversationId) return
+
+    const selected = conversations.find(c => c._id === selectedConversationId)
+    if (!selected) return
+
+    const result = await sendMessage({
+      sender_id: userId,
+      receiver_id: selected._id,
+      content: messageInput,
+      token: token || ''
+    })
+
+    if (result.success) {
+      setMessageInput('')
+      fetchMessages(selected._id)
+      fetchConversations()
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const filtered = conversations.filter(c =>
+    c.participantName.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const selected = conversations.find(c => c._id === selectedConversationId)
+
+  const totalUnreadCount = conversations.reduce(
+    (sum, conv) => sum + conv.unreadCount,
+    0
+  )
+
   return (
-    <div className="messages-container">
-      <div className="conversations-sidebar">
-        <div className="sidebar-header">
-          <h2>Messages</h2>
-          <p>Communicate with candidates</p>
+    <div className={styles.messagesContainer}>
+      <div className={styles.conversationsSidebar}>
+        <div className={styles.sidebarHeader}>
+          <div className={styles.headerTitleWrapper}>
+            <h2>Messages</h2>
+            {totalUnreadCount > 0 && (
+              <span className={styles.totalUnreadBadge}>{totalUnreadCount}</span>
+            )}
+          </div>
         </div>
-        
-        <div className="search-bar">
+
+        <div className={styles.searchBar}>
           <input
             type="text"
-            placeholder="Search messages..."
+            placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            className={styles.searchInput}
           />
         </div>
-        
-        <div className="conversations-list">
-          {filteredConversations.map(conv => (
-            <div
-              key={conv.id}
-              className={`conversation-item ${selectedConversation === conv.id ? 'active' : ''} ${conv.unread ? 'unread' : ''}`}
-              onClick={() => setSelectedConversation(conv.id)}
-            >
-              <div className="avatar">
-                <span>{conv.candidateId}</span>
-              </div>
-              <div className="conversation-info">
-                <div className="conversation-header">
-                  <h4>{conv.candidateName}</h4>
-                  <span className="timestamp">{conv.timestamp}</span>
-                </div>
-                <p className="job-title">{conv.jobTitle}</p>
-                <p className="last-message">{conv.lastMessage}</p>
-              </div>
-              {conv.unread && <div className="unread-indicator"></div>}
+
+        <div className={styles.conversationsList}>
+          {loading ? (
+            <div className={styles.loadingState}>
+              <p>Loading...</p>
             </div>
-          ))}
+          ) : filtered.length > 0 ? (
+            filtered.map((conv) => (
+              <div
+                key={conv._id}
+                className={`${styles.conversationItem} ${
+                  selectedConversationId === conv._id ? styles.active : ''
+                }`}
+                onClick={() => setSelectedConversationId(conv._id)}
+              >
+                <div
+                  className={styles.avatar}
+                  style={{ backgroundColor: conv.avatarColor }}
+                >
+                  {conv.participantName.charAt(0).toUpperCase()}
+                </div>
+                <div className={styles.conversationInfo}>
+                  <h4 className={styles.conversationName}>{conv.participantName}</h4>
+                  <p className={styles.lastMessage}>{conv.lastMessage}</p>
+                </div>
+                {conv.unreadCount > 0 && (
+                  <span className={styles.unreadBadge}>{conv.unreadCount}</span>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className={styles.noConversations}>
+              <p>{searchQuery ? 'No conversations found' : 'No conversations'}</p>
+            </div>
+          )}
         </div>
       </div>
-      
-      <div className="message-content">
-        {selectedConv ? (
+
+      <div className={styles.messageContent}>
+        {selected ? (
           <>
-            <div className="message-header">
-              <div className="header-info">
-                <div className="avatar">
-                  <span>{selectedConv.candidateId}</span>
-                </div>
-                <div>
-                  <h3>{selectedConv.candidateName}</h3>
-                  <p>{selectedConv.jobTitle}</p>
-                </div>
-              </div>
+            <div className={styles.messageHeader}>
+              <h3>{selected.participantName}</h3>
+              {selected.jobTitle && <p>{selected.jobTitle}</p>}
             </div>
-            
-            <div className="messages-display">
-              <div className="messages-list">
-                {selectedConv.messages.map((msg, index) => (
-                  <div key={index} className={`message ${msg.sender}`}>
-                    <div className="message-bubble">
-                      <p>{msg.content}</p>
-                      <span className="message-time">{msg.timestamp}</span>
+
+            <div className={styles.messagesList}>
+              {messages.length > 0 ? (
+                messages.map((msg) => {
+                  const isSent = msg.sender_id === userId
+                  const isUnopenedReceived = !isSent && !msg.isOpened
+
+                  return (
+                    <div
+                      key={msg._id}
+                      className={`${styles.messageBubble} ${isSent ? styles.sent : styles.received} ${
+                        isUnopenedReceived ? styles.unopened : ''
+                      }`}
+                    >
+                      <div className={styles.messageText}>{msg.content}</div>
+                      <span className={styles.messageTime}>
+                        {new Date(msg.created_at).toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  )
+                })
+              ) : (
+                <p className={styles.noMessages}>No messages</p>
+              )}
+              <div ref={messagesEndRef} />
             </div>
-            
-            <div className="message-input">
-              <input
-                type="text"
-                placeholder="Type a message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSendMessage()
-                  }
-                }}
+
+            <div className={styles.messageInputArea}>
+              <textarea
+                className={styles.messageInput}
+                placeholder="Type message..."
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                onKeyPress={handleKeyPress}
               />
-              <button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="22" y1="2" x2="11" y2="13" />
-                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
+              <button
+                className={styles.sendBtn}
+                onClick={handleSendMessage}
+                disabled={!messageInput.trim()}
+              >
+                Send
               </button>
             </div>
           </>
         ) : (
-          <div className="no-conversation">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-            </svg>
-            <h3>Select a conversation</h3>
-            <p>Choose a candidate from the list to start messaging</p>
+          <div className={styles.noSelectedConversation}>
+            <p>Select a conversation to start messaging</p>
           </div>
         )}
       </div>
@@ -230,4 +318,4 @@ const Messages = () => {
   )
 }
 
-export default Messages
+export default Messages;

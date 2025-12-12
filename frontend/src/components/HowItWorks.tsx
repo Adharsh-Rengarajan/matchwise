@@ -1,3 +1,5 @@
+import styles from '../styles/howitworks.module.css'
+
 const HowItWorks = () => {
   const jobSeekerSteps = [
     {
@@ -6,7 +8,7 @@ const HowItWorks = () => {
       description: 'Our AI extracts and analyzes your skills, experience, and transferable capabilities'
     },
     {
-      number: '02',
+      number: '02', 
       title: 'AI Matching Engine',
       description: 'LLM analyzes job descriptions and calculates compatibility scores in real-time'
     },
@@ -14,11 +16,6 @@ const HowItWorks = () => {
       number: '03',
       title: 'View Match Scores',
       description: 'See your percentage match, skill gaps, and transferable skills for each position'
-    },
-    {
-      number: '04',
-      title: 'Apply with Confidence',
-      description: 'Focus on jobs where you have the highest match, saving time and increasing success'
     }
   ]
 
@@ -30,59 +27,52 @@ const HowItWorks = () => {
     },
     {
       number: '02',
-      title: 'AI Analyzes Applicants',
-      description: 'Our LLM processes all resumes and ranks candidates by actual compatibility'
+      title: 'AI Candidate Ranking',
+      description: 'Candidates are automatically ranked by AI-calculated compatibility scores'
     },
     {
       number: '03',
-      title: 'View Top Candidates',
-      description: 'Access pre-ranked candidate lists with detailed match analysis and insights'
-    },
-    {
-      number: '04',
-      title: 'Connect & Interview',
-      description: 'Message top matches directly and add notes for collaborative hiring'
+      title: 'Review Top Matches',
+      description: 'Focus on pre-qualified candidates with detailed match analysis reports'
     }
   ]
 
   return (
-    <section id="how-it-works" className="how-it-works">
-      <div className="container">
-        <div className="section-header">
-          <h2 className="section-title">How MatchWise Works</h2>
-          <p className="section-subtitle">
+    <section id="how-it-works" className={styles.howItWorks}>
+      <div className={styles.container}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>How MatchWise Works</h2>
+          <p className={styles.sectionSubtitle}>
             Intelligent job matching powered by advanced AI
           </p>
         </div>
-        
-        <div className="user-type-tabs">
-          <h3 className="tab-title active">For Job Seekers</h3>
+
+        <div className={styles.userTypeTabs}>
+          <h3 className={styles.tabTitle}>For Job Seekers</h3>
         </div>
-        <div className="steps-container">
+        <div className={styles.stepsContainer}>
           {jobSeekerSteps.map((step, index) => (
-            <div key={index} className="step">
-              <div className="step-number">{step.number}</div>
-              <div className="step-content">
-                <h3 className="step-title">{step.title}</h3>
-                <p className="step-description">{step.description}</p>
+            <div key={index} className={styles.step}>
+              <div className={styles.stepNumber}>{step.number}</div>
+              <div className={styles.stepContent}>
+                <h3 className={styles.stepTitle}>{step.title}</h3>
+                <p className={styles.stepDescription}>{step.description}</p>
               </div>
-              {index < jobSeekerSteps.length - 1 && <div className="step-connector"></div>}
             </div>
           ))}
         </div>
 
-        <div className="user-type-tabs" style={{marginTop: '4rem'}}>
-          <h3 className="tab-title active">For Recruiters</h3>
+        <div className={styles.userTypeTabs}>
+          <h3 className={styles.tabTitle}>For Recruiters</h3>
         </div>
-        <div className="steps-container">
+        <div className={styles.stepsContainer}>
           {recruiterSteps.map((step, index) => (
-            <div key={index} className="step">
-              <div className="step-number">{step.number}</div>
-              <div className="step-content">
-                <h3 className="step-title">{step.title}</h3>
-                <p className="step-description">{step.description}</p>
+            <div key={index} className={styles.step}>
+              <div className={styles.stepNumber}>{step.number}</div>
+              <div className={styles.stepContent}>
+                <h3 className={styles.stepTitle}>{step.title}</h3>
+                <p className={styles.stepDescription}>{step.description}</p>
               </div>
-              {index < recruiterSteps.length - 1 && <div className="step-connector"></div>}
             </div>
           ))}
         </div>
@@ -91,4 +81,4 @@ const HowItWorks = () => {
   )
 }
 
-export default HowItWorks
+export default HowItWorks;

@@ -1,14 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { API_ENDPOINTS, apiRequest } from '../config/api'
-import '../styles/top-candidates.css'
+import styles from '../styles/top-candidates.module.css'
+
+interface JobseekerData {
+  userId?: string
+  id?: string
+  name: string
+  email: string
+}
 
 interface Candidate {
   id: string
   job_id: string
   jobseeker_id: string
   resume_file_id: string
-  status: string
+  application_status: string
   created_at: string
   match_result?: {
     score: number
@@ -26,6 +33,7 @@ interface Candidate {
     note: string
     created_at: string
   }>
+  jobseeker?: JobseekerData
 }
 
 interface Job {
@@ -44,33 +52,63 @@ const TopCandidates = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('all')
   const [sortBy, setSortBy] = useState('score')
-  
+  const [updatingCandidateId, setUpdatingCandidateId] = useState<string | null>(null)
+
   useEffect(() => {
     if (jobId) {
       fetchCandidatesAndJob()
     }
   }, [jobId])
-  
+
   useEffect(() => {
     filterAndSortCandidates()
   }, [candidates, filterStatus, sortBy])
-  
+
   const fetchCandidatesAndJob = async () => {
     try {
       const [jobResponse, candidatesResponse] = await Promise.all([
         apiRequest(API_ENDPOINTS.GET_JOB_BY_ID(jobId!)),
         apiRequest(API_ENDPOINTS.GET_TOP_CANDIDATES(jobId!))
       ])
-      
+
       const jobData = await jobResponse.json()
       const candidatesData = await candidatesResponse.json()
-      
+
       if (jobResponse.ok && jobData.data) {
         setJob(jobData.data)
       }
-      
+
       if (candidatesResponse.ok && candidatesData.data) {
-        setCandidates(candidatesData.data)
+        const candidatesList = candidatesData.data
+
+        const candidatesWithJobseekerInfo = await Promise.all(
+          candidatesList.map(async (candidate: Candidate) => {
+            try {
+              const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
+              const jobseekerResponse = await apiRequest(`${baseUrl}/users/${candidate.jobseeker_id}`)
+
+              if (jobseekerResponse.ok) {
+                const jobseekerData = await jobseekerResponse.json()
+                if (jobseekerData.data) {
+                  return {
+                    ...candidate,
+                    jobseeker: {
+                      userId: jobseekerData.data.userId || jobseekerData.data.id,
+                      name: jobseekerData.data.name,
+                      email: jobseekerData.data.email
+                    }
+                  }
+                }
+              }
+              return candidate
+            } catch (error) {
+              console.error(`Failed to fetch jobseeker ${candidate.jobseeker_id}:`, error)
+              return candidate
+            }
+          })
+        )
+
+        setCandidates(candidatesWithJobseekerInfo)
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -78,51 +116,58 @@ const TopCandidates = () => {
       setIsLoading(false)
     }
   }
-  
+
   const filterAndSortCandidates = () => {
     let filtered = [...candidates]
-    
+
     if (filterStatus !== 'all') {
-      filtered = filtered.filter(c => c.status === filterStatus)
+      filtered = filtered.filter(c => c.application_status?.toUpperCase() === filterStatus.toUpperCase())
     }
-    
+
     filtered.sort((a, b) => {
       if (sortBy === 'score') {
         return (b.match_result?.score || 0) - (a.match_result?.score || 0)
       }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
-    
+
     setFilteredCandidates(filtered)
   }
-  
+
   const handleStatusChange = async (candidateId: string, newStatus: string) => {
+    setUpdatingCandidateId(candidateId)
     try {
-      const response = await apiRequest(API_ENDPOINTS.UPDATE_JOB_STATUS, {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
+      const response = await apiRequest(`${baseUrl}/applications/${candidateId}/`, {
         method: 'PATCH',
         body: JSON.stringify({
-          application_id: candidateId,
-          status: newStatus
+          application_status: newStatus
         })
       })
-      
+
       if (response.ok) {
-        setCandidates(candidates.map(c => 
-          c.id === candidateId ? { ...c, status: newStatus } : c
+        setCandidates(candidates.map(c =>
+          c.id === candidateId ? { ...c, application_status: newStatus } : c
         ))
+      } else {
+        const errorData = await response.json()
+        console.error('Status update failed:', errorData)
       }
     } catch (error) {
       console.error('Failed to update status:', error)
+    } finally {
+      setUpdatingCandidateId(null)
     }
   }
-  
+
   const handleViewApplication = (candidateId: string) => {
     navigate(`/recruiter/applications/${candidateId}`)
   }
-  
+
   const handleDownloadResume = async (fileId: string) => {
     try {
-      const response = await fetch(API_ENDPOINTS.GET_RESUME(fileId))
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
+      const response = await fetch(`${baseUrl}/applications/resume/${fileId}/`)
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
@@ -136,155 +181,154 @@ const TopCandidates = () => {
       console.error('Failed to download resume:', error)
     }
   }
-  
+
   const getScoreColor = (score: number) => {
     if (score >= 80) return '#10b981'
     if (score >= 60) return '#3b82f6'
     if (score >= 40) return '#f59e0b'
     return '#ef4444'
   }
-  
+
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-    
-    if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)} hours ago`
+    try {
+      const date = new Date(dateString)
+
+      if (isNaN(date.getTime())) {
+        return 'N/A'
+      }
+
+      const now = new Date()
+      const diffInMs = now.getTime() - date.getTime()
+
+      if (diffInMs < 0) {
+        return 'Just now'
+      }
+
+      const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
+      const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
+
+      if (diffInHours < 1) {
+        return 'Just now'
+      }
+      if (diffInHours < 24) {
+        return `${diffInHours}h ago`
+      }
+      if (diffInDays < 7) {
+        return `${diffInDays}d ago`
+      }
+
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+      })
+    } catch {
+      return 'N/A'
     }
-    const diffInDays = Math.floor(diffInHours / 24)
-    if (diffInDays < 7) {
-      return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`
-    }
-    return date.toLocaleDateString('en-US', { 
-      month: 'short',
-      day: 'numeric'
-    })
   }
-  
+
   if (isLoading) {
     return (
-      <div className="loading-container">
-        <div className="spinner"></div>
+      <div className={styles.loadingContainer}>
+        <div className={styles.spinner}></div>
         <p>Loading candidates...</p>
       </div>
     )
   }
-  
+
   return (
-    <div className="top-candidates">
-      <div className="page-header">
-        <button className="back-btn" onClick={() => navigate(`/recruiter/jobs/${jobId}`)}>
+    <div className={styles.topCandidates}>
+      <div className={styles.pageHeader}>
+        <button className={styles.backBtn} onClick={() => navigate(`/recruiter/jobs/${jobId}`)}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M5 12L12 19M5 12L12 5" />
           </svg>
           Back to Job Details
         </button>
-        <div className="header-info">
+        <div className={styles.headerInfo}>
           <h1>Top Candidates</h1>
-          {job && <p className="job-title">{job.title} - {job.location}</p>}
+          {job && <p className={styles.jobTitle}>{job.title} - {job.location}</p>}
         </div>
       </div>
-      
-      <div className="filters-bar">
-        <div className="filter-group">
+
+      <div className={styles.filtersBar}>
+        <div className={styles.filterGroup}>
           <label>Filter by Status:</label>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
             <option value="all">All Candidates</option>
-            <option value="pending">Pending Review</option>
-            <option value="shortlisted">Shortlisted</option>
-            <option value="rejected">Rejected</option>
+            <option value="APPLIED">Applied</option>
+            <option value="REVIEWING">Pending Review</option>
+            <option value="SHORTLISTED">Shortlisted</option>
+            <option value="INTERVIEW">Interview</option>
+            <option value="OFFER">Offer</option>
+            <option value="HIRED">Hired</option>
+            <option value="REJECTED">Rejected</option>
           </select>
         </div>
-        <div className="filter-group">
+        <div className={styles.filterGroup}>
           <label>Sort by:</label>
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
             <option value="score">Match Score</option>
             <option value="date">Application Date</option>
           </select>
         </div>
-        <div className="candidates-count">
+        <div className={styles.candidatesCount}>
           {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? 's' : ''}
         </div>
       </div>
-      
+
       {filteredCandidates.length === 0 ? (
-        <div className="no-candidates">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-          <h3>No candidates found</h3>
-          <p>No applications match your current filters</p>
+        <div className={styles.noCandidates}>
+          <p>No candidates found with the selected filters.</p>
         </div>
       ) : (
-        <div className="candidates-grid">
-          {filteredCandidates.map(candidate => (
-            <div key={candidate.id} className="candidate-card">
-              <div className="candidate-header">
-                <div className="candidate-info">
-                  <h3>Candidate #{candidate.jobseeker_id.slice(-6)}</h3>
-                  <p className="applied-time">{formatDate(candidate.created_at)}</p>
+        <div className={styles.candidatesGrid}>
+          {filteredCandidates.map((candidate) => (
+            <div key={candidate.id} className={styles.candidateCard}>
+              <div className={styles.cardHeader}>
+                <div className={styles.candidateInfo}>
+                  <h3 className={styles.candidateName}>{candidate.jobseeker?.name || 'N/A'}</h3>
+                  <p className={styles.candidateEmail}>{candidate.jobseeker?.email || 'N/A'}</p>
+                  <p className={styles.applicationDate}>{formatDate(candidate.created_at)}</p>
                 </div>
-                <div className="match-score" style={{ background: getScoreColor(candidate.match_result?.score || 0) }}>
-                  {candidate.match_result?.score || 0}%
+                <div className={styles.scoreCircle} style={{ backgroundColor: getScoreColor(candidate.match_result?.score || 0) }}>
+                  <span className={styles.scoreValue}>{Math.round(candidate.match_result?.score || 0)}%</span>
                 </div>
               </div>
-              
-              <div className="candidate-details">
-                {candidate.match_result?.skills_match && (
-                  <div className="detail-row">
-                    <span className="detail-label">Matching Skills:</span>
-                    <div className="skills-tags">
-                      {candidate.match_result.skills_match.slice(0, 3).map((skill, index) => (
-                        <span key={index} className="skill-tag">{skill}</span>
-                      ))}
-                      {candidate.match_result.skills_match.length > 3 && (
-                        <span className="skill-tag more">+{candidate.match_result.skills_match.length - 3}</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                <div className="detail-row">
-                  <span className="detail-label">Status:</span>
-                  <select 
-                    className={`status-select ${candidate.status}`}
-                    value={candidate.status}
+
+              <div className={styles.cardBody}>
+                <div className={styles.statusSection}>
+                  <label>Status:</label>
+                  <select
+                    value={candidate.application_status || 'APPLIED'}
                     onChange={(e) => handleStatusChange(candidate.id, e.target.value)}
+                    disabled={updatingCandidateId === candidate.id}
+                    className={styles.statusSelect}
                   >
-                    <option value="pending">Pending Review</option>
-                    <option value="shortlisted">Shortlisted</option>
-                    <option value="rejected">Rejected</option>
+                    <option value="APPLIED">Applied</option>
+                    <option value="REVIEWING">Pending Review</option>
+                    <option value="SHORTLISTED">Shortlisted</option>
+                    <option value="INTERVIEW">Interview</option>
+                    <option value="OFFER">Offer</option>
+                    <option value="HIRED">Hired</option>
+                    <option value="REJECTED">Rejected</option>
                   </select>
                 </div>
-                
-                {candidate.notes && candidate.notes.length > 0 && (
-                  <div className="notes-preview">
-                    <span className="notes-count">{candidate.notes.length} note{candidate.notes.length > 1 ? 's' : ''}</span>
-                  </div>
-                )}
+
               </div>
               
-              <div className="candidate-actions">
-                <button 
-                  className="action-btn view"
+              <div className={styles.cardFooter}>
+                <button
+                  className={styles.btnPrimary}
                   onClick={() => handleViewApplication(candidate.id)}
                 >
-                  View Application
+                  View Details
                 </button>
-                <button 
-                  className="action-btn download"
+                <button
+                  className={styles.btnSecondary}
                   onClick={() => handleDownloadResume(candidate.resume_file_id)}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  Resume
+                  Download Resume
                 </button>
               </div>
             </div>
@@ -295,4 +339,4 @@ const TopCandidates = () => {
   )
 }
 
-export default TopCandidates
+export default TopCandidates;

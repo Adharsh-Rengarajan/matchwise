@@ -1,29 +1,30 @@
 import { Link } from 'react-router-dom'
+import styles from '../styles/header.module.css'
 
 const Header = () => {
   return (
-    <header className="header">
-      <nav className="nav-container">
-        <div className="logo">
-          <Link to="/" className="logo-text">MatchWise</Link>
+    <header className={styles.header}>
+      <nav className={styles.navContainer}>
+        <div className={styles.logo}>
+          <Link to="/" className={styles.logoText}>MatchWise</Link>
         </div>
-        <div className="nav-links">
-          <a href="#features" className="nav-link">Features</a>
-          <a href="#how-it-works" className="nav-link">How It Works</a>
-          <a href="#about" className="nav-link">About</a>
+        <div className={styles.navLinks}>
+          <a href="#features" className={styles.navLink}>Features</a>
+          <a href="#how-it-works" className={styles.navLink}>How It Works</a>
+          <a href="#about" className={styles.navLink}>About</a>
         </div>
-        <div className="auth-buttons">
-          <Link to="/login" className="btn btn-secondary">
+        <div className={styles.authButtons}>
+          <Link to="/login" className={`${styles.btn} ${styles.btnSecondary}`}>
             Login
           </Link>
-          <Link to="/register" className="btn btn-primary">
+          <Link to="/register" className={`${styles.btn} ${styles.btnPrimary}`}>
             Get Started
           </Link>
         </div>
-        <button className="mobile-menu-btn">
-          <span className="hamburger"></span>
-          <span className="hamburger"></span>
-          <span className="hamburger"></span>
+        <button className={styles.mobileMenuBtn}>
+          <span className={styles.hamburger}></span>
+          <span className={styles.hamburger}></span>
+          <span className={styles.hamburger}></span>
         </button>
       </nav>
     </header>

@@ -19,48 +19,51 @@ import NotFound from './pages/NotFound'
 import RecruiterLayout from './components/RecruiterLayout'
 import JobSeekerLayout from './components/JobSeekerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
-import './App.css'
+import styles from './App.module.css'
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      
-      <Route path="/recruiter" element={
-        <ProtectedRoute userType="recruiter">
-          <RecruiterLayout />
-        </ProtectedRoute>
-      }>
-        <Route index element={<Navigate to="/recruiter/dashboard" replace />} />
-        <Route path="dashboard" element={<RecruiterDashboard />} />
-        <Route path="jobs" element={<ViewJobs />} />
-        <Route path="jobs/:jobId" element={<JobDetails />} />
-        <Route path="jobs/:jobId/candidates" element={<TopCandidates />} />
-        <Route path="applications/:applicationId" element={<ApplicationDetail />} />
-        <Route path="post-job" element={<PostJob />} />
-        <Route path="messages" element={<Messages />} />
-      </Route>
-      
-      <Route path="/jobseeker" element={
-        <ProtectedRoute userType="jobseeker">
-          <JobSeekerLayout />
-        </ProtectedRoute>
-      }>
-        <Route index element={<Navigate to="/jobseeker/dashboard" replace />} />
-        <Route path="dashboard" element={<JobSeekerDashboard />} />
-        <Route path="search" element={<JobSeekerSearch />} />
-        <Route path="job/:jobId" element={<JobSeekerJobDetail />} />
-        <Route path="applications" element={<JobSeekerApplications />} />
-        <Route path="applications/:applicationId" element={<JobSeekerJobDetail />} />
-        <Route path="messages" element={<JobSeekerMessages />} />
-        <Route path="profile" element={<JobSeekerProfile />} />
-      </Route>
-      
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <div className={styles.app}>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        
+        <Route path="/recruiter" element={
+          <ProtectedRoute userType="recruiter">
+            <RecruiterLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Navigate to="/recruiter/dashboard" replace />} />
+          <Route path="dashboard" element={<RecruiterDashboard />} />
+          <Route path="jobs" element={<ViewJobs />} />
+          <Route path="jobs/:jobId" element={<JobDetails />} />
+          <Route path="jobs/:jobId/candidates" element={<TopCandidates />} />
+          <Route path="applications/:applicationId" element={<ApplicationDetail />} />
+          <Route path="post-job" element={<PostJob />} />
+          <Route path="/recruiter/messages" element={<Messages />} />
+          <Route path="messages" element={<Messages />} />
+        </Route>
+        
+        <Route path="/jobseeker" element={
+          <ProtectedRoute userType="jobseeker">
+            <JobSeekerLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Navigate to="/jobseeker/dashboard" replace />} />
+          <Route path="dashboard" element={<JobSeekerDashboard />} />
+          <Route path="search" element={<JobSeekerSearch />} />
+          <Route path="job/:jobId" element={<JobSeekerJobDetail />} />
+          <Route path="applications" element={<JobSeekerApplications />} />
+          <Route path="applications/:applicationId" element={<JobSeekerJobDetail />} />
+          <Route path="messages" element={<Messages />} />
+          <Route path="profile" element={<JobSeekerProfile />} />
+        </Route>
+        
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </div>
   )
 }
 
-export default App
+export default App;

@@ -1,0 +1,420 @@
+.jobseekerProfile {
+  padding: 32px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 16px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #5b5fc7;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.profileHeader {
+  background: linear-gradient(135deg, #1a1d3a 0%, #2d3561 100%);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 24px;
+  color: white;
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.profileAvatar {
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.profileInfo {
+  flex: 1;
+}
+
+.profileInfo h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.profileEmail,
+.profilePhone {
+  font-size: 14px;
+  opacity: 0.9;
+  margin: 4px 0;
+}
+
+.profileActions {
+  display: flex;
+  gap: 12px;
+}
+
+.btnEdit,
+.btnSave,
+.btnCancel {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.btnEdit {
+  background: white;
+  color: #1a1d3a;
+}
+
+.btnEdit:hover {
+  background: #f3f4f6;
+}
+
+.btnSave {
+  background: #10b981;
+  color: white;
+}
+
+.btnSave:hover:not(:disabled) {
+  background: #059669;
+}
+
+.btnSave:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnCancel {
+  background: transparent;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btnCancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.profileContent {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.profileSection {
+  margin-bottom: 40px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.profileSection:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.profileSection h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1d3a;
+  margin: 0 0 20px 0;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.sectionHeader h2 {
+  margin: 0;
+}
+
+.addBtn {
+  padding: 8px 16px;
+  background: #5b5fc7;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.addBtn:hover {
+  background: #4c50b8;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formGroup label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.formGroup input {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.formGroup input:focus {
+  outline: none;
+  border-color: #5b5fc7;
+  box-shadow: 0 0 0 3px rgba(91, 95, 199, 0.1);
+}
+
+.fieldValue {
+  font-size: 14px;
+  color: #1a1d3a;
+  padding: 10px 0;
+}
+
+.skillsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.addSkill {
+  display: flex;
+  gap: 12px;
+}
+
+.addSkill input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.addSkill input:focus {
+  outline: none;
+  border-color: #5b5fc7;
+}
+
+.addSkill button {
+  padding: 10px 20px;
+  background: #5b5fc7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.addSkill button:hover {
+  background: #4c50b8;
+}
+
+.skillsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skillTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #f3f4f6;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #4b5563;
+  font-weight: 500;
+}
+
+.removeBtn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.removeBtn:hover {
+  color: #ef4444;
+}
+
+.addForm {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.btnPrimary,
+.btnSecondary {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btnPrimary {
+  background: #5b5fc7;
+  color: white;
+  border: none;
+}
+
+.btnPrimary:hover {
+  background: #4c50b8;
+}
+
+.btnSecondary {
+  background: white;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.btnSecondary:hover {
+  background: #f3f4f6;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.itemCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+.itemInfo h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1d3a;
+  margin: 0 0 4px 0;
+}
+
+.itemSubtitle {
+  font-size: 14px;
+  color: #5b5fc7;
+  margin: 0 0 4px 0;
+}
+
+.itemDate {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.deleteBtn {
+  padding: 6px 12px;
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.deleteBtn:hover {
+  background: #fecaca;
+}
+
+.emptyText {
+  color: #9ca3af;
+  font-size: 14px;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .jobseekerProfile {
+    padding: 16px;
+  }
+
+  .headerContent {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .profileActions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .addSkill {
+    flex-direction: column;
+  }
+
+  .addSkill button {
+    width: 100%;
+  }
+}

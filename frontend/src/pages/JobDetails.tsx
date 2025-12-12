@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { API_ENDPOINTS, apiRequest } from '../config/api'
-import '../styles/job-details.css'
+import styles from '../styles/job-details.module.css'
 
 interface Job {
   id: string
@@ -10,9 +10,7 @@ interface Job {
   location: string
   status: string
   created_at: string
-  salary_min?: number
-  salary_max?: number
-  experience_level?: string
+  salary?: string
   type?: string
   skills_required?: string[]
   questions?: Array<{ question: string; questionNo: number }>
@@ -64,199 +62,208 @@ const JobDetails = () => {
     })
   }
   
-  const formatSalary = (min?: number, max?: number) => {
-    if (min == null && max == null) return 'Not specified'
-    const formatter = new Intl.NumberFormat('en-US', {
+  const formatSalary = (salary?: string) => {
+    if (!salary || salary === "") return 'Not specified'
+    
+    const salaryNum = parseFloat(salary)
+    if (isNaN(salaryNum) || salaryNum === 0) return 'Not specified'
+    
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       maximumFractionDigits: 0
-    })
-    if (min != null && max != null) return `${formatter.format(min)} - ${formatter.format(max)}`
-    if (min != null) return `From ${formatter.format(min)}`
-    if (max != null) return `Up to ${formatter.format(max)}`
-    return 'Not specified'
-  }
-  
-  const getExperienceLabel = (level?: string) => {
-    const labels: Record<string, string> = {
-      entry: 'Entry Level (0-2 years)',
-      junior: 'Junior (2-4 years)',
-      mid: 'Mid Level (4-7 years)',
-      senior: 'Senior (5-10 years)',
-      lead: 'Lead (10+ years)'
-    }
-    return labels[level || ''] || level || 'Not specified'
+    }).format(salaryNum)
   }
   
   const getEmploymentType = (type?: string) => {
-    const types: Record<string, string> = {
-      'full-time': 'Full-time',
-      'part-time': 'Part-time',
-      'contract': 'Contract',
-      'internship': 'Internship'
+    if (!type) return 'Not specified'
+    return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
+  }
+  
+  const getStatusClass = (status: string) => {
+    const statusLower = status.toLowerCase()
+    return `${styles.jobStatusBadge} ${styles[statusLower]}`
+  }
+  
+  const handleStatusUpdate = async (newStatus: string) => {
+    try {
+      const response = await apiRequest(API_ENDPOINTS.UPDATE_JOB_STATUS, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          job_id: jobId,
+          status: newStatus
+        })
+      })
+      
+      if (response.ok) {
+        setJob(job ? { ...job, status: newStatus } : null)
+      }
+    } catch (error) {
+      console.error('Failed to update job status:', error)
     }
-    return types[type || ''] || type || 'Full-time'
   }
   
   if (isLoading) {
     return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Loading job details...</p>
+      <div className={styles.loader}>
+        <div className={styles.spinner}></div>
       </div>
     )
   }
   
   if (!job) {
     return (
-      <div className="error-container">
-        <h2>Job not found</h2>
-        <button onClick={() => navigate('/recruiter/jobs')}>Back to Jobs</button>
+      <div className={styles.jobDetailsContainer}>
+        <p>Job not found</p>
       </div>
     )
   }
   
-  const processedDescription = job.description.split('\n').map(line => {
-    if (line.startsWith('•')) {
-      return { type: 'bullet', content: line.substring(1).trim() }
-    }
-    if (line.includes(':') && line.indexOf(':') < 30) {
-      const [title, ...rest] = line.split(':')
-      return { type: 'section', title: title.trim(), content: rest.join(':').trim() }
-    }
-    return { type: 'paragraph', content: line }
-  })
-  
   return (
-    <div className="job-details">
-      <div className="details-header">
-        <button className="back-btn" onClick={() => navigate('/recruiter/jobs')}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M5 12L12 19M5 12L12 5" />
-          </svg>
-          Back to Jobs
-        </button>
-      </div>
+    <div className={styles.jobDetailsContainer}>
+      <button 
+        className={styles.backButton}
+        onClick={() => navigate('/recruiter/jobs')}
+      >
+        ← Back to Jobs
+      </button>
       
-      <div className="details-container">
-        <div className="job-header-section">
-          <div className="job-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
-              <path d="M20 6H4C3.45 6 3 6.45 3 7V19C3 19.55 3.45 20 4 20H20C20.55 20 21 19.55 21 19V7C21 6.45 20.55 6 20 6Z" />
+      <div className={styles.jobHeaderCard}>
+        <div className={styles.jobHeaderSection}>
+          <div className={styles.jobIcon}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
+              <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
             </svg>
           </div>
-          <div className="job-title-info">
+          
+          <div className={styles.jobInfo}>
             <h1>{job.title}</h1>
-            <div className="job-meta">
-              <span className="location">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                  <circle cx="12" cy="10" r="3" />
+            <div className={styles.jobMeta}>
+              <span className={`${styles.metaItem} ${styles.location}`}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
                 </svg>
                 {job.location}
               </span>
-              <span className="salary">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="12" y1="1" x2="12" y2="23" />
-                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                </svg>
-                {formatSalary(job.salary_min, job.salary_max)}
-              </span>
-              <span className="posted">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                  <line x1="16" y1="2" x2="16" y2="6" />
-                  <line x1="8" y1="2" x2="8" y2="6" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-                Posted {formatDate(job.created_at)}
-              </span>
+              <span className={styles.metaItem}>{formatSalary(job.salary)}</span>
+              <span className={styles.metaItem}>Posted {formatDate(job.created_at)}</span>
             </div>
-            <span className={`status-badge ${job.status}`}>
-              {job.status}
-            </span>
+          </div>
+          
+          <div className={getStatusClass(job.status)}>
+            {job.status}
           </div>
         </div>
         
-        <div className="details-content">
-          <div className="main-content">
+        <div className={styles.detailsContent}>
+          <div className={styles.mainSection}>
             {job.skills_required && job.skills_required.length > 0 && (
-              <div className="skills-section">
+              <div className={styles.contentCard}>
                 <h3>Required Skills</h3>
-                <div className="skills-list">
+                <div className={styles.skillsList}>
                   {job.skills_required.map((skill, index) => (
-                    <span key={index} className="skill-tag">{skill}</span>
+                    <span key={index} className={styles.skillTag}>{skill}</span>
                   ))}
                 </div>
               </div>
             )}
             
-            <div className="description-section">
+            <div className={styles.contentCard}>
               <h3>Job Description</h3>
-              <div className="description-content">
-                {processedDescription.map((item, index) => {
-                  if (item.type === 'section') {
-                    return (
-                      <div key={index} className="description-section-item">
-                        <h4>{item.title}:</h4>
-                        {item.content && <p>{item.content}</p>}
-                      </div>
-                    )
-                  }
-                  if (item.type === 'bullet') {
-                    return (
-                      <div key={index} className="bullet-item">
-                        <span className="bullet">•</span>
-                        <span>{item.content}</span>
-                      </div>
-                    )
-                  }
-                  return item.content && <p key={index}>{item.content}</p>
-                })}
-              </div>
+              <p className={styles.description}>{job.description || 'No description provided'}</p>
             </div>
             
             {job.questions && job.questions.length > 0 && (
-              <div className="questions-section">
+              <div className={styles.contentCard}>
                 <h3>Screening Questions</h3>
-                <ol className="questions-list">
+                <div className={styles.questionsList}>
                   {job.questions.map((q, index) => (
-                    <li key={index}>{q.question}</li>
+                    <div key={index} className={styles.questionItem}>
+                      <div className={styles.questionLabel}>Question {q.questionNo || index + 1}</div>
+                      <div className={styles.questionText}>{q.question}</div>
+                    </div>
                   ))}
-                </ol>
+                </div>
               </div>
             )}
           </div>
           
-          <div className="sidebar-content">
-            <div className="applications-card">
-              <h3>Applications</h3>
-              <div className="applications-count">
-                <span className="count">{applicationsCount}</span>
-                <span className="label">Total Applications</span>
+          <div className={styles.sidebarSection}>
+            <div className={styles.sidebarCard}>
+              <h3>Job Details</h3>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Employment Type</span>
+                <span className={styles.infoValue}>{getEmploymentType(job.type)}</span>
               </div>
-              <p className="info-text">Match scores calculated when candidates applied</p>
-              <button 
-                className="view-candidates-btn"
-                onClick={() => navigate(`/recruiter/jobs/${jobId}/candidates`)}
-              >
-                View Top Candidates
-              </button>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Salary Range</span>
+                <span className={styles.infoValue}>{formatSalary(job.salary)}</span>
+              </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Posted Date</span>
+                <span className={styles.infoValue}>{formatDate(job.created_at)}</span>
+              </div>
             </div>
             
-            <div className="details-card">
-              <h3>Job Details</h3>
-              <div className="detail-item">
-                <span className="detail-label">Experience Level</span>
-                <span className="detail-value">{getExperienceLabel(job.experience_level)}</span>
+            <div className={styles.sidebarCard}>
+              <h3>Application Stats</h3>
+              <div className={styles.statsGrid}>
+                <div className={styles.statItem}>
+                  <div className={styles.statValue}>{applicationsCount}</div>
+                  <div className={styles.statLabel}>Total Applications</div>
+                </div>
+                <div className={styles.statItem}>
+                  <div className={styles.statValue}>0</div>
+                  <div className={styles.statLabel}>Interviewed</div>
+                </div>
               </div>
-              <div className="detail-item">
-                <span className="detail-label">Employment Type</span>
-                <span className="detail-value">{getEmploymentType(job.type)}</span>
-              </div>
-              <div className="detail-item">
-                <span className="detail-label">Work Location</span>
-                <span className="detail-value">{job.location}</span>
+            </div>
+            
+            <div className={styles.sidebarCard}>
+              <h3>Actions</h3>
+              <div className={styles.actionButtons}>
+                {job.status === 'OPEN' && (
+                  <>
+                    <button 
+                      className={styles.btnPrimary}
+                      onClick={() => navigate(`/recruiter/jobs/${jobId}/candidates`)}
+                    >
+                      View Candidates
+                    </button>
+                    <button 
+                      className={styles.btnSecondary}
+                      onClick={() => handleStatusUpdate('HIRING')}
+                    >
+                      Mark as Hiring
+                    </button>
+                  </>
+                )}
+                
+                {job.status === 'HIRING' && (
+                  <>
+                    <button 
+                      className={styles.btnPrimary}
+                      onClick={() => navigate(`/recruiter/jobs/${jobId}/candidates`)}
+                    >
+                      View Candidates
+                    </button>
+                    <button 
+                      className={styles.btnDanger}
+                      onClick={() => handleStatusUpdate('EXPIRED')}
+                    >
+                      Close Job
+                    </button>
+                  </>
+                )}
+                
+                {job.status === 'EXPIRED' && (
+                  <button 
+                    className={styles.btnPrimary}
+                    onClick={() => handleStatusUpdate('OPEN')}
+                  >
+                    Reopen Job
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -266,4 +273,4 @@ const JobDetails = () => {
   )
 }
 
-export default JobDetails
+export default JobDetails;

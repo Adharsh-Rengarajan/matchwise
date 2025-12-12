@@ -1,5 +1,4 @@
-/* Login Page Specific Styles - Isolated */
-.login-page {
+.loginPage {
   position: fixed;
   top: 0;
   left: 0;
@@ -17,7 +16,7 @@
   z-index: 1;
 }
 
-.back-home-link {
+.backHomeLink {
   position: fixed;
   top: 2rem;
   left: 2rem;
@@ -31,11 +30,16 @@
   z-index: 10;
 }
 
-.back-home-link:hover {
+.backHomeLink:hover {
   color: #6366f1;
 }
 
-.login-container {
+.backHomeLink svg {
+  width: 20px;
+  height: 20px;
+}
+
+.loginContainer {
   width: 100%;
   max-width: 440px;
   background: white;
@@ -58,7 +62,7 @@
   }
 }
 
-.login-icon {
+.loginIcon {
   width: 56px;
   height: 56px;
   background: #6366f1;
@@ -69,7 +73,13 @@
   margin: 0 auto 1.5rem;
 }
 
-.login-title {
+.loginIcon svg {
+  width: 32px;
+  height: 32px;
+  fill: white;
+}
+
+.loginTitle {
   font-size: 1.75rem;
   font-weight: 700;
   color: #111827;
@@ -77,14 +87,14 @@
   margin-bottom: 0.25rem;
 }
 
-.login-subtitle {
+.loginSubtitle {
   color: #6b7280;
   font-size: 0.875rem;
   text-align: center;
   margin-bottom: 2rem;
 }
 
-.user-type-toggle {
+.userTypeToggle {
   display: flex;
   background: #f3f4f6;
   border-radius: 2rem;
@@ -92,7 +102,7 @@
   margin-bottom: 2rem;
 }
 
-.toggle-option {
+.toggleOption {
   flex: 1;
   padding: 0.5rem 1rem;
   background: transparent;
@@ -106,17 +116,17 @@
   font-family: inherit;
 }
 
-.toggle-option.active {
+.toggleOption.active {
   background: #6366f1;
   color: white;
   box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
 }
 
-.login-form {
+.loginForm {
   width: 100%;
 }
 
-.error-message {
+.errorMessage {
   background: #fee2e2;
   border: 1px solid #fecaca;
   color: #dc2626;
@@ -127,11 +137,11 @@
   text-align: center;
 }
 
-.form-group {
+.formGroup {
   margin-bottom: 1.25rem;
 }
 
-.form-group label {
+.formGroup label {
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
@@ -139,7 +149,7 @@
   margin-bottom: 0.5rem;
 }
 
-.form-group input {
+.formGroup input {
   width: 100%;
   padding: 0.75rem 1rem;
   background: #f9fafb;
@@ -148,54 +158,21 @@
   font-size: 0.875rem;
   transition: all 0.2s;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
-.form-group input:focus {
+.formGroup input:focus {
   outline: none;
   border-color: #6366f1;
   background: white;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-.form-group input::placeholder {
+.formGroup input::placeholder {
   color: #9ca3af;
 }
 
-.form-options {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.checkbox-container {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.checkbox-container input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #6366f1;
-  cursor: pointer;
-}
-
-.forgot-link {
-  color: #6366f1;
-  font-size: 0.875rem;
-  text-decoration: none;
-  transition: opacity 0.2s;
-}
-
-.forgot-link:hover {
-  opacity: 0.8;
-}
-
-.login-button {
+.loginButton {
   width: 100%;
   padding: 0.75rem;
   background: #111827;
@@ -207,47 +184,48 @@
   cursor: pointer;
   transition: all 0.2s;
   font-family: inherit;
+  margin-top: 0.5rem;
 }
 
-.login-button:hover:not(:disabled) {
+.loginButton:hover:not(:disabled) {
   background: #1f2937;
   transform: translateY(-1px);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.login-button:disabled {
+.loginButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.signup-prompt {
+.signupPrompt {
   text-align: center;
   margin-top: 1.5rem;
   color: #6b7280;
   font-size: 0.875rem;
 }
 
-.signup-link {
+.signupLink {
   color: #6366f1;
   font-weight: 500;
   text-decoration: none;
 }
 
-.signup-link:hover {
+.signupLink:hover {
   text-decoration: underline;
 }
 
 @media (max-width: 768px) {
-  .login-page {
+  .loginPage {
     padding: 1rem;
   }
 
-  .back-home-link {
+  .backHomeLink {
     top: 1rem;
     left: 1rem;
   }
 
-  .login-container {
+  .loginContainer {
     padding: 2rem 1.5rem;
   }
 }

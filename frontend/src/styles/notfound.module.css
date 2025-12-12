@@ -1,6 +1,4 @@
-/* NotFound.css - Styles for 404 page */
-
-.not-found {
+.notFound {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -11,7 +9,7 @@
   overflow: hidden;
 }
 
-.not-found::before {
+.notFound::before {
   content: '';
   position: absolute;
   width: 200%;
@@ -32,14 +30,14 @@
   }
 }
 
-.not-found-container {
+.notFoundContainer {
   text-align: center;
   z-index: 1;
   padding: 2rem;
   animation: fadeInUp 0.8s ease;
 }
 
-.not-found-404 {
+.notFound404 {
   font-size: 10rem;
   font-weight: 800;
   color: white;
@@ -50,7 +48,7 @@
   display: inline-block;
 }
 
-.not-found-404::after {
+.notFound404::after {
   content: '404';
   position: absolute;
   top: 0;
@@ -74,7 +72,7 @@
   }
 }
 
-.not-found-title {
+.notFoundTitle {
   font-size: 2rem;
   color: white;
   margin: 1.5rem 0 1rem;
@@ -82,7 +80,7 @@
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.not-found-description {
+.notFoundDescription {
   font-size: 1.125rem;
   color: rgba(255, 255, 255, 0.9);
   margin-bottom: 2rem;
@@ -90,14 +88,14 @@
   line-height: 1.6;
 }
 
-.not-found-buttons {
+.notFoundButtons {
   display: flex;
   gap: 1rem;
   justify-content: center;
   flex-wrap: wrap;
 }
 
-.not-found-btn {
+.notFoundBtn {
   padding: 0.875rem 2rem;
   border-radius: 50px;
   font-size: 1rem;
@@ -112,36 +110,36 @@
   font-family: inherit;
 }
 
-.not-found-btn-primary {
+.notFoundBtnPrimary {
   background: white;
   color: #667eea;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-.not-found-btn-primary:hover {
+.notFoundBtnPrimary:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
-.not-found-btn-secondary {
+.notFoundBtnSecondary {
   background: rgba(255, 255, 255, 0.1);
   color: white;
   border: 2px solid rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(10px);
 }
 
-.not-found-btn-secondary:hover {
+.notFoundBtnSecondary:hover {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.5);
   transform: translateY(-2px);
 }
 
-.not-found-icon {
+.notFoundIcon {
   width: 20px;
   height: 20px;
 }
 
-.not-found-illustration {
+.notFoundIllustration {
   position: absolute;
   bottom: 0;
   left: 50%;
@@ -152,15 +150,14 @@
   pointer-events: none;
 }
 
-/* Floating elements for visual interest */
-.floating-element {
+.floatingElement {
   position: absolute;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   animation: float 6s ease-in-out infinite;
 }
 
-.floating-element-1 {
+.floatingElement1 {
   width: 80px;
   height: 80px;
   top: 10%;
@@ -168,7 +165,7 @@
   animation-delay: 0s;
 }
 
-.floating-element-2 {
+.floatingElement2 {
   width: 60px;
   height: 60px;
   top: 20%;
@@ -176,7 +173,7 @@
   animation-delay: 2s;
 }
 
-.floating-element-3 {
+.floatingElement3 {
   width: 100px;
   height: 100px;
   bottom: 20%;
@@ -184,7 +181,7 @@
   animation-delay: 4s;
 }
 
-.floating-element-4 {
+.floatingElement4 {
   width: 40px;
   height: 40px;
   bottom: 30%;
@@ -212,39 +209,38 @@
   }
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
-  .not-found-404 {
+  .notFound404 {
     font-size: 6rem;
   }
   
-  .not-found-title {
+  .notFoundTitle {
     font-size: 1.5rem;
   }
   
-  .not-found-description {
+  .notFoundDescription {
     font-size: 1rem;
     padding: 0 1rem;
   }
   
-  .not-found-buttons {
+  .notFoundButtons {
     flex-direction: column;
     width: 100%;
     padding: 0 2rem;
   }
   
-  .not-found-btn {
+  .notFoundBtn {
     width: 100%;
     justify-content: center;
   }
 }
 
 @media (max-width: 480px) {
-  .not-found-404 {
+  .notFound404 {
     font-size: 4rem;
   }
   
-  .not-found-title {
+  .notFoundTitle {
     font-size: 1.25rem;
   }
 }

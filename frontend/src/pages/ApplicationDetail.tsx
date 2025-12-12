@@ -1,7 +1,35 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { API_ENDPOINTS, apiRequest } from '../config/api'
-import '../styles/application-detail.css'
+import styles from '../styles/application-detail.module.css'
+
+interface Jobseeker {
+  userId: string
+  name: string
+  email: string
+  phone: string
+  role: string
+  skills?: string[]
+  experience?: Array<{
+    title: string
+    company: string
+    start_date: string
+    end_date?: string
+  }>
+  education?: Array<{
+    degree: string
+    institution: string
+    start_date: string
+    end_date?: string
+  }>
+}
+
+interface Note {
+  note_id: string
+  recruiter_id: string
+  note: string
+  created_at: string
+}
 
 interface Application {
   id: string
@@ -26,11 +54,7 @@ interface Application {
     questionNo: number
     answer: string
   }>
-  notes?: Array<{
-    recruiter_id: string
-    note: string
-    created_at: string
-  }>
+  notes?: Note[]
   resume_text?: string
 }
 
@@ -40,11 +64,6 @@ interface Job {
   location: string
   skills_required?: string[]
   company?: string
-  job_type?: string
-  salary_range?: {
-    min: number
-    max: number
-  }
 }
 
 const ApplicationDetail = () => {
@@ -53,12 +72,18 @@ const ApplicationDetail = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const [application, setApplication] = useState<Application | null>(null)
   const [job, setJob] = useState<Job | null>(null)
+  const [jobseeker, setJobseeker] = useState<Jobseeker | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [newNote, setNewNote] = useState('')
   const [isAddingNote, setIsAddingNote] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState('')
   const [isSavingStatus, setIsSavingStatus] = useState(false)
-  const [statusSaveMessage, setStatusSaveMessage] = useState('')
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editingNoteText, setEditingNoteText] = useState('')
+  const [statusMessage, setStatusMessage] = useState('')
+  const [showReachOutModal, setShowReachOutModal] = useState(false)
+  const [reachOutText, setReachOutText] = useState('')
+  const [isSendingReachOut, setIsSendingReachOut] = useState(false)
   
   useEffect(() => {
     if (applicationId) {
@@ -74,7 +99,8 @@ const ApplicationDetail = () => {
   
   const fetchApplicationDetails = async () => {
     try {
-      const response = await apiRequest(`${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/applications/${applicationId}`)
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
+      const response = await apiRequest(`${baseUrl}/applications/${applicationId}`)
       
       if (response.ok) {
         const data = await response.json()
@@ -88,25 +114,12 @@ const ApplicationDetail = () => {
               setJob(jobData.data)
             }
           }
-        }
-      } else {
-        const jobIdMatch = window.location.pathname.match(/jobs\/([^\/]+)\//)
-        if (jobIdMatch) {
-          const jobId = jobIdMatch[1]
-          const candidatesResponse = await apiRequest(API_ENDPOINTS.GET_TOP_CANDIDATES(jobId))
-          
-          if (candidatesResponse.ok) {
-            const candidatesData = await candidatesResponse.json()
-            const foundApplication = candidatesData.data?.find((app: Application) => app.id === applicationId)
-            
-            if (foundApplication) {
-              setApplication(foundApplication)
-              
-              const jobResponse = await apiRequest(API_ENDPOINTS.GET_JOB_BY_ID(foundApplication.job_id))
-              if (jobResponse.ok) {
-                const jobData = await jobResponse.json()
-                setJob(jobData.data)
-              }
+
+          if (data.data.jobseeker_id) {
+            const jobseekerResponse = await apiRequest(`${baseUrl}/users/${data.data.jobseeker_id}`)
+            if (jobseekerResponse.ok) {
+              const jobseekerData = await jobseekerResponse.json()
+              setJobseeker(jobseekerData.data)
             }
           }
         }
@@ -123,10 +136,11 @@ const ApplicationDetail = () => {
     
     setSelectedStatus(newStatus)
     setIsSavingStatus(true)
-    setStatusSaveMessage('')
+    setStatusMessage('')
     
     try {
-      const response = await apiRequest(`${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/applications/${applicationId}`, {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
+      const response = await apiRequest(`${baseUrl}/applications/${applicationId}/`, {
         method: 'PATCH',
         body: JSON.stringify({
           application_status: newStatus
@@ -135,18 +149,18 @@ const ApplicationDetail = () => {
       
       if (response.ok) {
         setApplication(prev => prev ? { ...prev, application_status: newStatus } : prev)
-        setStatusSaveMessage('Status updated successfully')
-        setTimeout(() => setStatusSaveMessage(''), 3000)
+        setStatusMessage('Status updated successfully')
+        setTimeout(() => setStatusMessage(''), 3000)
       } else {
         setSelectedStatus(application.application_status)
-        setStatusSaveMessage('Failed to update status')
-        setTimeout(() => setStatusSaveMessage(''), 3000)
+        setStatusMessage('Failed to update status')
+        setTimeout(() => setStatusMessage(''), 3000)
       }
     } catch (error) {
       console.error('Failed to update status:', error)
       setSelectedStatus(application.application_status)
-      setStatusSaveMessage('Error updating status')
-      setTimeout(() => setStatusSaveMessage(''), 3000)
+      setStatusMessage('Error updating status')
+      setTimeout(() => setStatusMessage(''), 3000)
     } finally {
       setIsSavingStatus(false)
     }
@@ -157,26 +171,18 @@ const ApplicationDetail = () => {
     
     setIsAddingNote(true)
     try {
-      const response = await apiRequest(API_ENDPOINTS.ADD_NOTE(applicationId!), {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
+      const response = await apiRequest(`${baseUrl}/recruiters/applications/${applicationId}/notes`, {
         method: 'POST',
         body: JSON.stringify({
-          recruiter_id: user.id,
+          recruiter_id: user.id || user.userId,
           note: newNote.trim()
         })
       })
       
       if (response.ok) {
-        const newNoteObj = {
-          recruiter_id: user.id,
-          note: newNote.trim(),
-          created_at: new Date().toISOString()
-        }
-        
-        setApplication(prev => prev ? {
-          ...prev,
-          notes: [...(prev.notes || []), newNoteObj]
-        } : prev)
-        
+        const responseData = await response.json()
+        setApplication(responseData.data)
         setNewNote('')
       }
     } catch (error) {
@@ -185,12 +191,52 @@ const ApplicationDetail = () => {
       setIsAddingNote(false)
     }
   }
+
+  const handleDeleteNote = async (noteId: string) => {
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
+      const response = await apiRequest(`${baseUrl}/recruiters/applications/${applicationId}/notes/${noteId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        const responseData = await response.json()
+        setApplication(responseData.data)
+      }
+    } catch (error) {
+      console.error('Failed to delete note:', error)
+    }
+  }
+
+  const handleEditNote = async (noteId: string) => {
+    if (!editingNoteText.trim()) return
+    
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
+      const response = await apiRequest(`${baseUrl}/recruiters/applications/${applicationId}/notes/${noteId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          note: editingNoteText.trim()
+        })
+      })
+
+      if (response.ok) {
+        const responseData = await response.json()
+        setApplication(responseData.data)
+        setEditingNoteId(null)
+        setEditingNoteText('')
+      }
+    } catch (error) {
+      console.error('Failed to update note:', error)
+    }
+  }
   
   const handleDownloadResume = async () => {
     if (!application) return
     
     try {
-      const response = await fetch(API_ENDPOINTS.GET_RESUME(application.resume_file_id))
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
+      const response = await fetch(`${baseUrl}/applications/resume/${application.resume_file_id}/`)
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
@@ -204,41 +250,67 @@ const ApplicationDetail = () => {
       console.error('Failed to download resume:', error)
     }
   }
-  
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return '#10b981'
-    if (score >= 60) return '#3b82f6'
-    if (score >= 40) return '#f59e0b'
-    return '#ef4444'
-  }
 
-  const getStatusClass = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case 'SHORTLISTED':
-        return 'shortlisted'
-      case 'REJECTED':
-        return 'rejected'
-      case 'PENDING':
-      case 'REVIEWING':
-        return 'pending'
-      default:
-        return ''
+  const handleReachOut = async () => {
+    if (!reachOutText.trim()) return
+
+    setIsSendingReachOut(true)
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
+      const response = await apiRequest(`${baseUrl}/messages/`, {
+        method: 'POST',
+        body: JSON.stringify({
+          sender_id: user.id,
+          receiver_id: jobseeker?.userId,
+          content: reachOutText,
+          message_type: 'text',
+          job_context: job?.id,
+          application_id: applicationId,
+          isOpened: false
+        })
+      })
+
+      if (response.ok) {
+        setReachOutText('')
+        setShowReachOutModal(false)
+        alert('Message sent successfully!')
+        navigate('/recruiter/messages')
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error)
+      alert('Failed to send message')
+    } finally {
+      setIsSendingReachOut(false)
+    }
+  }
+  
+  const getScoreStyles = (score: number) => {
+    return {
+      borderColor: '#10b981',
+      color: '#10b981'
     }
   }
   
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('en-US', {
-      month: 'long',
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     })
   }
+
+  const formatExperienceDate = (start: string, end?: string) => {
+    const startDate = new Date(start).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    if (!end) return `${startDate} - Present`
+    const endDate = new Date(end).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    return `${startDate} - ${endDate}`
+  }
   
   if (isLoading) {
     return (
-      <div className="loading-container">
-        <div className="spinner"></div>
+      <div className={styles.loadingContainer}>
+        <div className={styles.spinner}></div>
         <p>Loading application details...</p>
       </div>
     )
@@ -246,20 +318,18 @@ const ApplicationDetail = () => {
   
   if (!application) {
     return (
-      <div className="error-container">
+      <div className={styles.errorContainer}>
         <h2>Application not found</h2>
-        <button onClick={() => navigate('/recruiter/applications')}>
-          Back to Applications
-        </button>
+        <button onClick={() => navigate(-1)}>Back</button>
       </div>
     )
   }
   
   return (
-    <div className="application-detail">
-      <div className="detail-header">
+    <div className={styles.applicationDetail}>
+      <div className={styles.pageHeader}>
         <button 
-          className="back-btn" 
+          className={styles.backBtn} 
           onClick={() => navigate(-1)}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -268,93 +338,176 @@ const ApplicationDetail = () => {
           Back
         </button>
         
-        <div className="header-actions">
-          <select 
-            value={selectedStatus}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            disabled={isSavingStatus}
-            className={`status-select ${getStatusClass(selectedStatus)}`}
-          >
-            <option value="APPLIED">Applied</option>
-            <option value="REVIEWING">Under Review</option>
-            <option value="SHORTLISTED">Shortlisted</option>
-            <option value="INTERVIEW">Interview</option>
-            <option value="OFFER">Offer Extended</option>
-            <option value="HIRED">Hired</option>
-            <option value="REJECTED">Rejected</option>
-          </select>
-          
-          <button 
-            className="download-btn"
-            onClick={handleDownloadResume}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Download Resume
-          </button>
+        <div className={styles.headerInfo}>
+          <h1>Application Details</h1>
+          {job && (
+            <p className={styles.jobTitle}>{job.title} - {job.location}</p>
+          )}
         </div>
       </div>
 
-      <div className="detail-container">
-        <div className="application-header">
-          <div className="applicant-info">
-            <h1>Application Details</h1>
-            {job && (
-              <>
-                <p className="job-info">{job.title} - {job.location}</p>
-                <p className="application-date">Applied {formatDate(application.created_at)}</p>
-              </>
+      <div className={styles.detailContainer}>
+        <div className={styles.applicationCard}>
+          <div className={styles.cardHeader}>
+            <div className={styles.candidateInfo}>
+              <p className={styles.candidateName}>{jobseeker?.name || 'Candidate'}</p>
+              <p className={styles.candidateEmail}>{jobseeker?.email}</p>
+              <p className={styles.applicationDate}>Applied {formatDate(application.created_at)}</p>
+            </div>
+            
+            {application.match_result && (
+              <div 
+                className={styles.scoreCircle}
+                style={getScoreStyles(application.match_result.score)}
+              >
+                <span className={styles.scoreValue}>{Math.round(application.match_result.score)}%</span>
+              </div>
             )}
           </div>
-          
-          {application.match_result && (
-            <div className="score-display">
-              <div 
-                className="score-circle"
-                style={{ 
-                  background: getScoreColor(application.match_result.score)
-                }}
+
+          <div className={styles.cardBody}>
+            <div className={styles.statusSection}>
+              <label>Application Status</label>
+              <select 
+                value={selectedStatus}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                disabled={isSavingStatus}
+                className={styles.statusSelect}
               >
-                <span className="score-value">{application.match_result.score}%</span>
-                <span className="score-label">Match</span>
-              </div>
+                <option value="APPLIED">Applied</option>
+                <option value="REVIEWING">Under Review</option>
+                <option value="SHORTLISTED">Shortlisted</option>
+                <option value="INTERVIEW">Interview</option>
+                <option value="OFFER">Offer Extended</option>
+                <option value="HIRED">Hired</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
             </div>
-          )}
+          </div>
+
+          <div className={styles.cardFooter}>
+            <button 
+              className={styles.btnSecondary}
+              onClick={handleDownloadResume}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Resume
+            </button>
+            <button 
+              className={styles.btnSecondary}
+              onClick={() => setShowReachOutModal(true)}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              Reach Out
+            </button>
+          </div>
         </div>
 
-        <div className="detail-content">
-          <div className="main-section">
+        <div className={styles.contentGrid}>
+          <div className={styles.mainContent}>
+            {jobseeker && (
+              <div className={styles.sectionCard}>
+                <h2>Candidate Profile</h2>
+                <div className={styles.profileHeader}>
+                  <div className={styles.profileBasic}>
+                    <h3>{jobseeker.name}</h3>
+                    <p className={styles.email}>{jobseeker.email}</p>
+                    <p className={styles.phone}>{jobseeker.phone}</p>
+                  </div>
+                </div>
+
+                {jobseeker.skills && jobseeker.skills.length > 0 && (
+                  <div className={styles.profileSection}>
+                    <h4>Skills</h4>
+                    <div className={styles.skillsList}>
+                      {jobseeker.skills.map((skill, index) => (
+                        <span key={index} className={styles.skillBadge}>{skill}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {jobseeker.experience && jobseeker.experience.length > 0 && (
+                  <div className={styles.profileSection}>
+                    <h4>Experience</h4>
+                    <div className={styles.experienceList}>
+                      {jobseeker.experience.map((exp, index) => (
+                        <div key={index} className={styles.experienceItem}>
+                          <div className={styles.expHeader}>
+                            <h5>{exp.title}</h5>
+                            <span className={styles.expDate}>{formatExperienceDate(exp.start_date, exp.end_date)}</span>
+                          </div>
+                          <p className={styles.expCompany}>{exp.company}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {jobseeker.education && jobseeker.education.length > 0 && (
+                  <div className={styles.profileSection}>
+                    <h4>Education</h4>
+                    <div className={styles.educationList}>
+                      {jobseeker.education.map((edu, index) => (
+                        <div key={index} className={styles.educationItem}>
+                          <div className={styles.eduHeader}>
+                            <h5>{edu.degree}</h5>
+                            <span className={styles.eduDate}>{formatExperienceDate(edu.start_date, edu.end_date)}</span>
+                          </div>
+                          <p className={styles.eduInstitution}>{edu.institution}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {application.match_result && (
-              <div className="match-analysis">
+              <div className={styles.sectionCard}>
                 <h2>AI Match Analysis</h2>
                 
                 {application.match_result.explanation && (
-                  <div className="analysis-section">
+                  <div className={styles.analysisSection}>
                     <h3>Summary</h3>
                     <p>{application.match_result.explanation}</p>
                   </div>
                 )}
                 
                 {application.match_result.matched_skills && application.match_result.matched_skills.length > 0 && (
-                  <div className="analysis-section">
+                  <div className={styles.analysisSection}>
                     <h3>Matched Skills</h3>
-                    <div className="skills-grid">
+                    <div className={styles.skillsGrid}>
                       {application.match_result.matched_skills.map((skill, index) => (
-                        <span key={index} className="skill-badge matched">{skill}</span>
+                        <span key={index} className={`${styles.skillBadge} ${styles.matched}`}>{skill}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {application.match_result.missing_skills && application.match_result.missing_skills.length > 0 && (
+                  <div className={styles.analysisSection}>
+                    <h3>Missing Skills</h3>
+                    <div className={styles.skillsGrid}>
+                      {application.match_result.missing_skills.map((skill, index) => (
+                        <span key={index} className={`${styles.skillBadge} ${styles.missing}`}>{skill}</span>
                       ))}
                     </div>
                   </div>
                 )}
 
                 {application.match_result.transferable_skills && application.match_result.transferable_skills.length > 0 && (
-                  <div className="analysis-section">
+                  <div className={styles.analysisSection}>
                     <h3>Transferable Skills</h3>
-                    <div className="skills-grid">
+                    <div className={styles.skillsGrid}>
                       {application.match_result.transferable_skills.map((skill, index) => (
-                        <span key={index} className="skill-badge matched">{skill}</span>
+                        <span key={index} className={`${styles.skillBadge} ${styles.transferable}`}>{skill}</span>
                       ))}
                     </div>
                   </div>
@@ -363,69 +516,88 @@ const ApplicationDetail = () => {
             )}
 
             {application.questions && application.answers && application.questions.length > 0 && (
-              <div className="screening-answers">
-                <h2>Application Questions & Answers</h2>
+              <div className={styles.sectionCard}>
+                <h2>Screening Answers</h2>
                 {application.questions.map((q, index) => {
                   const answer = application.answers?.find(a => a.questionNo === q.questionNo)
                   return (
-                    <div key={index} className="qa-item">
-                      <p className="question">Q{q.questionNo}: {q.question}</p>
-                      <p className="answer">{answer?.answer || 'No answer provided'}</p>
+                    <div key={index} className={styles.qaItem}>
+                      <p className={styles.question}>Q{q.questionNo}: {q.question}</p>
+                      <p className={styles.answer}>{answer?.answer || 'No answer provided'}</p>
                     </div>
                   )
                 })}
               </div>
             )}
-
-            {application.resume_text && (
-              <div className="screening-answers">
-                <h2>Resume Preview</h2>
-                <div className="qa-item">
-                  <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-                    {application.resume_text.substring(0, 500)}...
-                  </pre>
-                  <button 
-                    className="download-btn"
-                    onClick={handleDownloadResume}
-                    style={{ marginTop: '16px' }}
-                  >
-                    View Full Resume
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
-          <div className="sidebar-section">
-            <div className="notes-section">
+          <div className={styles.sidebarSection}>
+            <div className={`${styles.sectionCard} ${styles.notesCard}`}>
               <h2>Recruiter Notes</h2>
               
-              {isSavingStatus && (
-                <div className="note-item" style={{ textAlign: 'center', fontStyle: 'italic' }}>
-                  Updating status...
-                </div>
-              )}
-              
-              {statusSaveMessage && (
-                <div className={`note-item ${statusSaveMessage.includes('success') ? 'success' : 'error'}`}>
-                  {statusSaveMessage}
+              {statusMessage && (
+                <div className={`${styles.message} ${statusMessage.includes('success') ? styles.success : styles.error}`}>
+                  {statusMessage}
                 </div>
               )}
 
-              <div className="notes-list">
+              <div className={styles.notesList}>
                 {application.notes && application.notes.length > 0 ? (
-                  application.notes.map((note, index) => (
-                    <div key={index} className="note-item">
-                      <p className="note-text">{note.note}</p>
-                      <p className="note-meta">{formatDate(note.created_at)}</p>
+                  application.notes.map((note: Note) => (
+                    <div key={note.note_id} className={styles.noteItem}>
+                      {editingNoteId === note.note_id ? (
+                        <div className={styles.noteEdit}>
+                          <textarea
+                            value={editingNoteText}
+                            onChange={(e) => setEditingNoteText(e.target.value)}
+                            rows={3}
+                          />
+                          <div className={styles.noteActions}>
+                            <button 
+                              className={styles.saveBtn}
+                              onClick={() => handleEditNote(note.note_id)}
+                            >
+                              Save
+                            </button>
+                            <button 
+                              className={styles.cancelBtn}
+                              onClick={() => setEditingNoteId(null)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className={styles.noteText}>{note.note}</p>
+                          <p className={styles.noteMeta}>{formatDate(note.created_at)}</p>
+                          <div className={styles.noteButtons}>
+                            <button 
+                              className={styles.editBtn}
+                              onClick={() => {
+                                setEditingNoteId(note.note_id)
+                                setEditingNoteText(note.note)
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              className={styles.deleteBtn}
+                              onClick={() => handleDeleteNote(note.note_id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))
                 ) : (
-                  <p className="no-notes">No notes yet</p>
+                  <p className={styles.noNotes}>No notes yet</p>
                 )}
               </div>
               
-              <div className="add-note">
+              <div className={styles.addNote}>
                 <textarea
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
@@ -436,39 +608,62 @@ const ApplicationDetail = () => {
                 <button
                   onClick={handleAddNote}
                   disabled={!newNote.trim() || isAddingNote}
-                  className="add-note-btn"
+                  className={styles.addNoteBtn}
                 >
                   {isAddingNote ? 'Adding...' : 'Add Note'}
                 </button>
               </div>
             </div>
-
-            <div className="actions-section">
-              <h3>Quick Actions</h3>
-              <button className="action-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Schedule Interview
-              </button>
-              <button className="action-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                Send Email
-              </button>
-              <button className="action-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 15v6m-4 0h8M12 3v6M8 7h8M5 11h14a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2z" />
-                </svg>
-                Export Profile
-              </button>
-            </div>
           </div>
         </div>
       </div>
+
+      {showReachOutModal && (
+        <div className={styles.reachOutModal}>
+          <div className={styles.reachOutContent}>
+            <div className={styles.reachOutHeader}>
+              <h3>Send Message to {jobseeker?.name}</h3>
+              <button 
+                className={styles.closeBtn}
+                onClick={() => setShowReachOutModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className={styles.reachOutBody}>
+              <p className={styles.jobContext}>Regarding: {job?.title}</p>
+              <textarea
+                value={reachOutText}
+                onChange={(e) => setReachOutText(e.target.value)}
+                placeholder="Write your message here..."
+                rows={6}
+                className={styles.reachOutTextarea}
+              />
+            </div>
+            <div className={styles.reachOutFooter}>
+              <button 
+                className={styles.cancelBtn}
+                onClick={() => setShowReachOutModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className={styles.sendBtn}
+                onClick={handleReachOut}
+                disabled={!reachOutText.trim() || isSendingReachOut}
+              >
+                {isSendingReachOut ? 'Sending...' : 'Send Message'}
+              </button>
+            </div>
+          </div>
+          <div 
+            className={styles.reachOutOverlay}
+            onClick={() => setShowReachOutModal(false)}
+          />
+        </div>
+      )}
     </div>
   )
 }
 
-export default ApplicationDetail
+export default ApplicationDetail;

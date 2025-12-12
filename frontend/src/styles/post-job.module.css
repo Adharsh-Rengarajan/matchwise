@@ -1,27 +1,33 @@
-.post-job {
+.postJob {
   padding: 32px;
   max-width: 900px;
   margin: 0 auto;
 }
 
-.page-header {
+.pageHeader {
   margin-bottom: 32px;
 }
 
-.page-header h1 {
+.pageHeader h1 {
   font-size: 32px;
   font-weight: 700;
   color: #1a1d3a;
   margin: 0 0 8px 0;
 }
 
-.page-header p {
+.pageHeader p {
   color: #6b7280;
   font-size: 16px;
   margin: 0;
 }
 
-.error-message {
+.subtitle {
+  color: #6b7280;
+  font-size: 16px;
+  margin: 0;
+}
+
+.errorMessage {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -32,40 +38,40 @@
   margin-bottom: 24px;
 }
 
-.job-form {
+.jobForm {
   background: white;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
-.form-section {
+.formSection {
   padding: 32px;
   border-bottom: 1px solid #e5e7eb;
 }
 
-.form-section:last-of-type {
+.formSection:last-of-type {
   border-bottom: none;
 }
 
-.form-section h3 {
+.formSection h3 {
   font-size: 20px;
   font-weight: 600;
   color: #1a1d3a;
   margin: 0 0 20px 0;
 }
 
-.section-description {
+.sectionDescription {
   color: #6b7280;
   font-size: 14px;
   margin: -12px 0 20px 0;
 }
 
-.form-group {
+.formGroup {
   margin-bottom: 24px;
 }
 
-.form-group label {
+.formGroup label {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -75,9 +81,9 @@
   margin-bottom: 8px;
 }
 
-.form-group input,
-.form-group textarea,
-.form-group select {
+.formGroup input,
+.formGroup textarea,
+.formGroup select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #d1d5db;
@@ -86,21 +92,21 @@
   transition: all 0.2s ease;
 }
 
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
+.formGroup input:focus,
+.formGroup textarea:focus,
+.formGroup select:focus {
   outline: none;
   border-color: #5b5fc7;
   box-shadow: 0 0 0 3px rgba(91, 95, 199, 0.1);
 }
 
-.form-group textarea {
+.formGroup textarea {
   resize: vertical;
   font-family: inherit;
   line-height: 1.5;
 }
 
-.ai-assist-btn {
+.aiAssistBtn {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -115,12 +121,12 @@
   transition: all 0.2s ease;
 }
 
-.ai-assist-btn:hover {
+.aiAssistBtn:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
 }
 
-.ai-assist-modal {
+.aiAssistModal {
   background: #f0f9ff;
   border: 1px solid #60a5fa;
   border-radius: 8px;
@@ -128,18 +134,18 @@
   margin-bottom: 16px;
 }
 
-.ai-assist-modal p {
+.aiAssistModal p {
   color: #1e40af;
   font-size: 14px;
   margin: 0 0 12px 0;
 }
 
-.modal-actions {
+.modalActions {
   display: flex;
   gap: 12px;
 }
 
-.modal-actions button {
+.modalActions button {
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 14px;
@@ -149,36 +155,36 @@
   border: none;
 }
 
-.modal-actions button:first-child {
+.modalActions button:first-child {
   background: #3b82f6;
   color: white;
 }
 
-.modal-actions button:first-child:hover {
+.modalActions button:first-child:hover {
   background: #2563eb;
 }
 
-.modal-actions button:last-child {
+.modalActions button:last-child {
   background: white;
   color: #6b7280;
   border: 1px solid #d1d5db;
 }
 
-.modal-actions button:last-child:hover {
+.modalActions button:last-child:hover {
   background: #f9fafb;
 }
 
-.form-row {
+.formRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
 }
 
-.questions-list {
+.questionsList {
   margin-bottom: 20px;
 }
 
-.question-item {
+.questionItem {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -188,18 +194,18 @@
   margin-bottom: 8px;
 }
 
-.question-number {
+.questionNumber {
   font-weight: 600;
   color: #5b5fc7;
 }
 
-.question-text {
+.questionText {
   flex: 1;
   color: #374151;
   font-size: 14px;
 }
 
-.remove-question-btn {
+.removeQuestionBtn {
   width: 24px;
   height: 24px;
   border: none;
@@ -211,16 +217,16 @@
   transition: all 0.2s ease;
 }
 
-.remove-question-btn:hover {
+.removeQuestionBtn:hover {
   background: #dc2626;
 }
 
-.add-question {
+.addQuestion {
   display: flex;
   gap: 12px;
 }
 
-.add-question input {
+.addQuestion input {
   flex: 1;
   padding: 10px 12px;
   border: 1px solid #d1d5db;
@@ -228,7 +234,7 @@
   font-size: 14px;
 }
 
-.add-question-btn {
+.addQuestionBtn {
   padding: 10px 20px;
   background: #5b5fc7;
   color: white;
@@ -240,18 +246,18 @@
   transition: all 0.2s ease;
 }
 
-.add-question-btn:hover {
+.addQuestionBtn:hover {
   background: #4c50b8;
 }
 
-.form-actions {
+.formActions {
   display: flex;
   gap: 16px;
   padding: 24px 32px;
   background: #f9fafb;
 }
 
-.submit-btn {
+.submitBtn {
   padding: 12px 32px;
   background: #1a1d3a;
   color: white;
@@ -263,17 +269,17 @@
   transition: all 0.2s ease;
 }
 
-.submit-btn:hover:not(:disabled) {
+.submitBtn:hover:not(:disabled) {
   background: #2d3561;
   transform: translateY(-1px);
 }
 
-.submit-btn:disabled {
+.submitBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.cancel-btn {
+.cancelBtn {
   padding: 12px 32px;
   background: white;
   color: #6b7280;
@@ -285,39 +291,39 @@
   transition: all 0.2s ease;
 }
 
-.cancel-btn:hover:not(:disabled) {
+.cancelBtn:hover:not(:disabled) {
   background: #f9fafb;
   border-color: #6b7280;
 }
 
-.cancel-btn:disabled {
+.cancelBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
-  .post-job {
+  .postJob {
     padding: 20px;
   }
   
-  .form-section {
+  .formSection {
     padding: 24px;
   }
   
-  .form-row {
+  .formRow {
     grid-template-columns: 1fr;
   }
   
-  .add-question {
+  .addQuestion {
     flex-direction: column;
   }
   
-  .form-actions {
+  .formActions {
     flex-direction: column;
   }
   
-  .submit-btn,
-  .cancel-btn {
+  .submitBtn,
+  .cancelBtn {
     width: 100%;
   }
 }

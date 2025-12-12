@@ -1,38 +1,34 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import '../styles/jobseeker-job-detail.css'
+import styles from '../styles/jobseeker-job-detail.module.css'
 
 interface Job {
   id: string
+  _id?: string
   title: string
-  company?: string
+  description: string
   location: string
-  job_type?: string
-  experience_level?: string
-  salary_range?: {
-    min: number
-    max: number
-  }
-  skills_required?: string[]
-  description?: string
-  responsibilities?: string[]
-  requirements?: string[]
-  benefits?: string[]
+  type: string
+  salary: string
+  start_date: string
+  end_date?: string
+  skills_required: string[]
+  status: string
   questions?: Array<{
     questionNo: number
     question: string
   }>
   created_at: string
-  status?: string
+  updated_at: string
+  recruiter_id: string
 }
 
-interface AIAnalysis {
-  match_score: number
-  matched_skills: string[]
-  missing_skills: string[]
-  recommendations: string[]
-  strengths: string[]
-  improvement_areas: string[]
+interface MatchResult {
+  score: number
+  matched_skills?: string[]
+  missing_skills?: string[]
+  transferable_skills?: string[]
+  explanation?: string
 }
 
 const JobSeekerJobDetail = () => {
@@ -40,47 +36,42 @@ const JobSeekerJobDetail = () => {
   const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const userId = user.id || user._id || user.userId
-  
+
   const [job, setJob] = useState<Job | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isSaved, setIsSaved] = useState(false)
-  const [hasApplied, setHasApplied] = useState(false)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [hasAnalyzed, setHasAnalyzed] = useState(false)
+  const [stage, setStage] = useState<'upload' | 'analyzing' | 'result'>('upload')
   const [resumeFile, setResumeFile] = useState<File | null>(null)
-  const [questionAnswers, setQuestionAnswers] = useState<{[key: number]: string}>({})
-  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [matchResult, setMatchResult] = useState<MatchResult | null>(null)
+  const [applicationId, setApplicationId] = useState<string | null>(null)
+  const [hasApplied, setHasApplied] = useState(false)
+  const [existingApplicationStatus, setExistingApplicationStatus] = useState<string | null>(null)
+  const [questionAnswers, setQuestionAnswers] = useState<{ [key: number]: string }>({})
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    fetchJobDetails()
-    checkApplicationStatus()
+    if (jobId) {
+      fetchJobDetails()
+      checkApplicationStatus()
+    }
   }, [jobId])
 
   const fetchJobDetails = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/jobs/job/${jobId}`)
-      
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/jobs/job/${jobId}`
+      )
+
       if (response.ok) {
         const data = await response.json()
-        if (data.data) {
-          setJob({
-            ...data.data,
-            company: data.data.company || 'Company Name',
-            questions: data.data.questions || []
-          })
-          
-          const initialAnswers: {[key: number]: string} = {}
-          if (data.data.questions) {
-            data.data.questions.forEach((q: any) => {
-              initialAnswers[q.questionNo] = ''
-            })
-          }
-          setQuestionAnswers(initialAnswers)
-        }
+        setJob(data.data || data)
+      } else {
+        setError('Failed to load job details')
       }
-    } catch (error) {
-      console.error('Failed to fetch job details:', error)
+    } catch (err) {
+      console.error('Error fetching job:', err)
+      setError('Failed to load job details')
     } finally {
       setIsLoading(false)
     }
@@ -88,146 +79,187 @@ const JobSeekerJobDetail = () => {
 
   const checkApplicationStatus = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/applications/jobseeker/${userId}`)
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/applications/jobseeker/${userId}/`
+      )
+
       if (response.ok) {
         const data = await response.json()
-        if (data.data) {
-          const existingApplication = data.data.find((app: any) => app.job_id === jobId)
-          if (existingApplication) {
-            setHasApplied(true)
-            
-            if (existingApplication.match_result) {
-              setAiAnalysis({
-                match_score: existingApplication.match_result.score || 0,
-                matched_skills: existingApplication.match_result.matched_skills || [],
-                missing_skills: existingApplication.match_result.missing_skills || [],
-                recommendations: existingApplication.match_result.recommendations || [],
-                strengths: existingApplication.match_result.strengths || [],
-                improvement_areas: existingApplication.match_result.improvement_areas || []
-              })
-              setHasAnalyzed(true)
+        const applications = Array.isArray(data.data) ? data.data : []
+        const existing = applications.find((app: any) => app.job_id === jobId)
+
+        if (existing) {
+          setApplicationId(existing.id || existing._id)
+          setExistingApplicationStatus(existing.application_status)
+
+          if (existing.match_result) {
+            setMatchResult(existing.match_result)
+          }
+
+          if (existing.application_status === 'PENDING') {
+            setHasApplied(false)
+            if (existing.match_result) {
+              setStage('result')
             }
+          } else {
+            setHasApplied(true)
+            setStage('result')
           }
         }
       }
-    } catch (error) {
-      console.error('Failed to check application status:', error)
+    } catch (err) {
+      console.error('Error checking application status:', err)
     }
-  }
-
-  const handleAnalyzeAndApply = async () => {
-    if (!resumeFile) {
-      alert('Please upload your resume first')
-      return
-    }
-
-    const unanswered = Object.entries(questionAnswers).filter(([_, answer]) => !answer.trim())
-    if (job?.questions && job.questions.length > 0 && unanswered.length > 0) {
-      alert('Please answer all questions before applying')
-      return
-    }
-
-    setIsAnalyzing(true)
-    try {
-      const formData = new FormData()
-      formData.append('job_id', jobId || '')
-      formData.append('jobseeker_id', userId)
-      formData.append('resume', resumeFile)
-      
-      const answersArray = job?.questions ? 
-        Object.entries(questionAnswers).map(([questionNo, answer]) => ({
-          questionNo: parseInt(questionNo),
-          answer: answer
-        })) : []
-      
-      formData.append('answers', JSON.stringify(answersArray))
-      formData.append('application_status', 'APPLIED')
-
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/applications/`, {
-        method: 'POST',
-        body: formData
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        const applicationData = data.data
-        
-        if (applicationData.match_result) {
-          setAiAnalysis({
-            match_score: applicationData.match_result.score || 0,
-            matched_skills: applicationData.match_result.matched_skills || [],
-            missing_skills: applicationData.match_result.missing_skills || [],
-            recommendations: applicationData.match_result.recommendations || [
-              'Review your application carefully',
-              'Follow up if you don\'t hear back within a week'
-            ],
-            strengths: applicationData.match_result.strengths || ['Application submitted successfully'],
-            improvement_areas: applicationData.match_result.improvement_areas || []
-          })
-        }
-        
-        setHasAnalyzed(true)
-        setHasApplied(true)
-        alert('Application submitted successfully!')
-        
-        setTimeout(() => {
-          navigate('/jobseeker/applications')
-        }, 1500)
-      } else {
-        const errorData = await response.json()
-        
-        if (errorData.detail?.includes('already')) {
-          alert('You have already applied for this job')
-          setHasApplied(true)
-        } else {
-          alert(errorData.detail || 'Failed to submit application. Please try again.')
-        }
-      }
-    } catch (error) {
-      console.error('Failed to submit application:', error)
-      alert('Failed to submit application. Please check your connection and try again.')
-    } finally {
-      setIsAnalyzing(false)
-    }
-  }
-
-  const handleSaveJob = () => {
-    setIsSaved(!isSaved)
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File size must be less than 5MB')
+        return
+      }
       setResumeFile(file)
+      setError('')
     }
   }
 
-  const handleAnswerChange = (questionNo: number, answer: string) => {
-    setQuestionAnswers(prev => ({
-      ...prev,
-      [questionNo]: answer
-    }))
+  const handleAnalyzeResume = async () => {
+    if (!resumeFile) {
+      setError('Please upload a resume first')
+      return
+    }
+
+    if (!job) {
+      setError('Job details not loaded')
+      return
+    }
+
+    setIsAnalyzing(true)
+    setError('')
+    setStage('analyzing')
+
+    try {
+      const formData = new FormData()
+      formData.append('job_id', jobId!)
+      formData.append('jobseeker_id', userId)
+      formData.append('resume', resumeFile)
+      formData.append('application_status', 'PENDING')
+
+      const jobQuestions = job.questions || []
+      const answersArray = jobQuestions.map((q) => ({
+        questionNo: q.questionNo,
+        answer: questionAnswers[q.questionNo] || ''
+      }))
+
+      formData.append('answers', JSON.stringify(answersArray))
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/applications/`,
+        {
+          method: 'POST',
+          body: formData
+        }
+      )
+
+      const data = await response.json()
+
+      if (response.ok) {
+        const applicationData = data.data || data
+        setApplicationId(applicationData.id || applicationData._id)
+        setExistingApplicationStatus('PENDING')
+
+        if (applicationData.match_result) {
+          setMatchResult(applicationData.match_result)
+        }
+
+        setStage('result')
+      } else {
+        let errorMessage = 'Failed to analyze resume'
+
+        if (typeof data.detail === 'string') {
+          errorMessage = data.detail
+        } else if (data.detail && typeof data.detail === 'object') {
+          errorMessage = 'Invalid request. Please check your answers and try again.'
+        }
+
+        if (errorMessage.includes('already')) {
+          setError('You have already applied for this job')
+          setHasApplied(true)
+        } else {
+          setError(errorMessage)
+        }
+        setStage('upload')
+      }
+    } catch (err) {
+      console.error('Error analyzing resume:', err)
+      setError('Failed to analyze resume. Please try again.')
+      setStage('upload')
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
 
-  const formatSalary = (min: number, max: number) => {
-    return `$${(min / 1000).toFixed(0)}k - $${(max / 1000).toFixed(0)}k`
+  const handleApplyNow = async () => {
+    if (!applicationId) {
+      setError('Application not found')
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/applications/${applicationId}/`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            application_status: 'APPLIED'
+          })
+        }
+      )
+
+      if (response.ok) {
+        setHasApplied(true)
+        setExistingApplicationStatus('APPLIED')
+        alert('Application submitted successfully!')
+        setTimeout(() => {
+          navigate('/jobseeker/applications')
+        }, 1500)
+      } else {
+        setError('Failed to submit application')
+      }
+    } catch (err) {
+      console.error('Error applying:', err)
+      setError('Failed to submit application')
+    }
   }
 
-  const getDaysAgo = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInMs = now.getTime() - date.getTime()
-    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
-    
-    if (diffInDays === 0) return 'Posted today'
-    if (diffInDays === 1) return 'Posted yesterday'
-    return `Posted ${diffInDays} days ago`
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      year: 'numeric'
+    })
+  }
+
+  const formatSalary = (salary?: string) => {
+    if (!salary || salary === '') return 'Not specified'
+    const salaryNum = parseFloat(salary)
+    if (isNaN(salaryNum) || salaryNum === 0) return 'Not specified'
+    return `$${(salaryNum / 1000).toFixed(0)}k`
+  }
+
+  const getMatchColor = (score: number) => {
+    if (score >= 80) return '#10b981'
+    if (score >= 60) return '#f59e0b'
+    return '#ef4444'
   }
 
   if (isLoading) {
     return (
-      <div className="loading-state">
-        <div className="spinner"></div>
+      <div className={styles.loadingContainer}>
+        <div className={styles.spinner}></div>
         <p>Loading job details...</p>
       </div>
     )
@@ -235,203 +267,227 @@ const JobSeekerJobDetail = () => {
 
   if (!job) {
     return (
-      <div className="error-state">
+      <div className={styles.errorContainer}>
         <h2>Job not found</h2>
-        <button onClick={() => navigate('/jobseeker/search')}>Back to Search</button>
+        <button className={styles.backButton} onClick={() => navigate(-1)}>
+          Back
+        </button>
+      </div>
+    )
+  }
+
+  if (hasApplied && stage !== 'result') {
+    return (
+      <div className={styles.alreadyAppliedContainer}>
+        <h2>Already Applied</h2>
+        <p>You have already applied for this job</p>
+        <button className={styles.backButton} onClick={() => navigate(-1)}>
+          Back
+        </button>
       </div>
     )
   }
 
   return (
-    <div className="jobseeker-job-detail">
-      <div className="job-detail-container">
-        <div className="job-header-section">
-          <div className="company-logo">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="#5b5fc7">
-              <path d="M19 3H5C3.89 3 3 3.89 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.89 20.1 3 19 3ZM19 19H5V5H19V19Z"/>
-            </svg>
-          </div>
-          <div className="job-header-info">
-            <h1>{job.title}</h1>
-            <p className="company-name">{job.company}</p>
-            <div className="job-meta-info">
-              <span className="meta-item">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="#6b7280">
-                  <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22S19 14.25 19 9C19 5.13 15.87 2 12 2Z"/>
-                </svg>
-                {job.location}
-              </span>
-              {job.salary_range && (
-                <span className="meta-item salary">
-                  {formatSalary(job.salary_range.min, job.salary_range.max)}
-                </span>
-              )}
-              <span className="meta-item">{getDaysAgo(job.created_at)}</span>
-            </div>
-          </div>
-          <div className="action-buttons-header">
-            <button 
-              className={`btn-save-job ${isSaved ? 'saved' : ''}`}
-              onClick={handleSaveJob}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17 3H7C5.9 3 5 3.9 5 5V21L12 18L19 21V5C19 3.9 18.1 3 17 3Z"/>
-              </svg>
-              {isSaved ? 'Saved' : 'Save'}
-            </button>
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <button className={styles.backButton} onClick={() => navigate(-1)}>
+          ← Back
+        </button>
+        <h1 className={styles.jobTitle}>{job.title}</h1>
+      </div>
+
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <div className={styles.jobHeaderInfo}>
+            <h2>{job.title}</h2>
+            <p className={styles.location}>
+              📍 {job.location} • Posted {formatDate(job.created_at)}
+            </p>
           </div>
         </div>
 
-        <div className="job-details-grid">
-          <div className="details-section">
+        <div className={styles.jobDetailsGrid}>
+          <div className={styles.detailsSection}>
             <h3>Job Details</h3>
-            <div className="details-list">
-              <div className="detail-item">
-                <span className="detail-label">Experience Level</span>
-                <span className="detail-value">{job.experience_level || 'Not specified'}</span>
+            <div className={styles.detailsList}>
+              <div className={styles.detailItem}>
+                <span className={styles.detailLabel}>Employment Type</span>
+                <span className={styles.detailValue}>{job.type}</span>
               </div>
-              <div className="detail-item">
-                <span className="detail-label">Employment Type</span>
-                <span className="detail-value">{job.job_type || 'Full-time'}</span>
+              <div className={styles.detailItem}>
+                <span className={styles.detailLabel}>Work Location</span>
+                <span className={styles.detailValue}>{job.location}</span>
               </div>
-              <div className="detail-item">
-                <span className="detail-label">Work Location</span>
-                <span className="detail-value">{job.location}</span>
+              <div className={styles.detailItem}>
+                <span className={styles.detailLabel}>Salary</span>
+                <span className={styles.detailValue}>{formatSalary(job.salary)}</span>
               </div>
             </div>
           </div>
 
-          <div className="skills-section">
+          <div className={styles.skillsSection}>
             <h3>Required Skills</h3>
-            <div className="skills-grid">
-              {job.skills_required?.map((skill, index) => (
-                <span key={index} className="skill-badge">
-                  {skill}
-                </span>
-              ))}
+            <div className={styles.skillsList}>
+              {job.skills_required && job.skills_required.length > 0 ? (
+                job.skills_required.map((skill, index) => (
+                  <span key={index} className={styles.skillBadge}>
+                    {skill}
+                  </span>
+                ))
+              ) : (
+                <p>No specific skills listed</p>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="description-section">
+        <div className={styles.descriptionSection}>
           <h3>Job Description</h3>
-          <p>{job.description || 'No description provided'}</p>
+          <p className={styles.description}>{job.description}</p>
         </div>
 
-        {!hasApplied && (
-          <div className="application-section">
+        {stage === 'upload' && !hasApplied && (
+          <div className={styles.applicationSection}>
             <h3>Application</h3>
-            
-            <div className="upload-section">
-              <label htmlFor="resume-upload">Resume *</label>
-              <div className="file-upload-wrapper">
+            <div className={styles.uploadContainer}>
+              <label htmlFor="resume-upload" className={styles.uploadLabel}>
+                Resume *
+              </label>
+              <div className={styles.fileInput}>
                 <input
                   id="resume-upload"
                   type="file"
                   accept=".pdf,.doc,.docx"
                   onChange={handleFileUpload}
+                  className={styles.input}
                 />
-                {resumeFile && (
-                  <p className="file-name">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#10b981">
-                      <path d="M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59L9 16.17Z"/>
-                    </svg>
-                    {resumeFile.name}
-                  </p>
-                )}
+                <span className={styles.fileName}>
+                  {resumeFile ? resumeFile.name : 'No file chosen'}
+                </span>
               </div>
+              {error && <p className={styles.errorMessage}>{error}</p>}
             </div>
 
             {job.questions && job.questions.length > 0 && (
-              <div className="questions-section">
+              <div className={styles.questionsContainer}>
                 <h4>Application Questions</h4>
                 {job.questions.map((q) => (
-                  <div key={q.questionNo} className="question-item">
-                    <label>{q.question} *</label>
+                  <div key={q.questionNo} className={styles.questionItem}>
+                    <label htmlFor={`question-${q.questionNo}`}>
+                      {q.question}
+                    </label>
                     <textarea
+                      id={`question-${q.questionNo}`}
                       value={questionAnswers[q.questionNo] || ''}
-                      onChange={(e) => handleAnswerChange(q.questionNo, e.target.value)}
+                      onChange={(e) =>
+                        setQuestionAnswers({
+                          ...questionAnswers,
+                          [q.questionNo]: e.target.value
+                        })
+                      }
                       placeholder="Your answer..."
-                      rows={3}
+                      className={styles.textarea}
                     />
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="application-actions">
-              <button 
-                className="btn-apply"
-                onClick={handleAnalyzeAndApply}
-                disabled={isAnalyzing || !resumeFile || (job.questions && job.questions.length > 0 && Object.values(questionAnswers).some(a => !a.trim()))}
-              >
-                {isAnalyzing ? (
-                  <>
-                    <div className="small-spinner"></div>
-                    Submitting...
-                  </>
-                ) : (
-                  'Apply Now'
-                )}
-              </button>
-            </div>
+            <button
+              className={styles.analyzeButton}
+              onClick={handleAnalyzeResume}
+              disabled={isAnalyzing || !resumeFile}
+            >
+              {isAnalyzing ? 'Analyzing...' : 'Upload & Analyze'}
+            </button>
           </div>
         )}
 
-        {hasApplied && aiAnalysis && (
-          <div className="ai-analysis-section">
-            <h3>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="#5b5fc7">
-                <path d="M12 2L2 7L12 12L22 7L12 2ZM12 17L2 12V17L12 22L22 17V12L12 17Z"/>
-              </svg>
-              Your Application Status
-            </h3>
-            
-            <div className="applied-status">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="#10b981">
-                <path d="M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59L9 16.17Z"/>
-              </svg>
-              <span>Application Submitted Successfully</span>
+        {stage === 'analyzing' && (
+          <div className={styles.analyzingSection}>
+            <div className={styles.spinner}></div>
+            <p>Analyzing your resume...</p>
+            <p className={styles.analyzeSubtext}>
+              Our AI is evaluating your qualifications against this job
+            </p>
+          </div>
+        )}
+
+        {stage === 'result' && matchResult && (
+          <div className={styles.resultSection}>
+            <h3>Match Score Results</h3>
+            <div className={styles.scoreContainer}>
+              <div
+                className={styles.scoreCircle}
+                style={{ borderColor: getMatchColor(matchResult.score) }}
+              >
+                <span
+                  className={styles.scoreText}
+                  style={{ color: getMatchColor(matchResult.score) }}
+                >
+                  {matchResult.score}%
+                </span>
+              </div>
+              <div className={styles.scoreDetails}>
+                <p className={styles.scoreLabel}>Match Score</p>
+                <p className={styles.scoreSubtext}>
+                  {matchResult.score >= 80
+                    ? 'Great fit for this position!'
+                    : matchResult.score >= 60
+                      ? 'Good potential match'
+                      : 'Consider reviewing the job requirements'}
+                </p>
+              </div>
             </div>
 
-            {aiAnalysis.match_score > 0 && (
-              <>
-                <div className="match-score-display">
-                  <div className="score-circle-large">
-                    <span className="score-value">{aiAnalysis.match_score}%</span>
-                    <span className="score-label">Match Score</span>
-                  </div>
-                  <div className="score-description">
-                    Your profile matches {aiAnalysis.match_score}% of the job requirements
-                  </div>
+            {matchResult.matched_skills && matchResult.matched_skills.length > 0 && (
+              <div className={styles.skillsMatch}>
+                <h4>Matched Skills</h4>
+                <div className={styles.skillsList}>
+                  {matchResult.matched_skills.map((skill, index) => (
+                    <span key={index} className={styles.matchedSkill}>
+                      ✓ {skill}
+                    </span>
+                  ))}
                 </div>
-
-                {aiAnalysis.matched_skills.length > 0 && (
-                  <div className="analysis-details">
-                    <div className="analysis-section">
-                      <h4>Matched Skills</h4>
-                      <div className="skills-matched">
-                        {aiAnalysis.matched_skills.map((skill, index) => (
-                          <span key={index} className="skill-tag matched">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59L9 16.17Z"/>
-                            </svg>
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
+              </div>
             )}
 
-            <button 
-              className="btn-view-application"
-              onClick={() => navigate('/jobseeker/applications')}
-            >
-              View All Applications
-            </button>
+            {matchResult.missing_skills && matchResult.missing_skills.length > 0 && (
+              <div className={styles.skillsGap}>
+                <h4>Skills to Develop</h4>
+                <div className={styles.skillsList}>
+                  {matchResult.missing_skills.map((skill, index) => (
+                    <span key={index} className={styles.missingSkill}>
+                      ○ {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {matchResult.explanation && (
+              <div className={styles.explanation}>
+                <h4>Analysis</h4>
+                <p>{matchResult.explanation}</p>
+              </div>
+            )}
+
+            {!hasApplied && existingApplicationStatus === 'PENDING' && (
+              <button
+                className={styles.applyButton}
+                onClick={handleApplyNow}
+              >
+                Apply Now
+              </button>
+            )}
+
+            {hasApplied && (
+              <div className={styles.appliedMessage}>
+                <p>✓ You have successfully applied for this position</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -439,4 +495,4 @@ const JobSeekerJobDetail = () => {
   )
 }
 
-export default JobSeekerJobDetail
+export default JobSeekerJobDetail;

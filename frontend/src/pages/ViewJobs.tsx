@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_ENDPOINTS, apiRequest } from '../config/api'
-import '../styles/view-jobs.css'
+import styles from '../styles/view-jobs.module.css'
 
 interface Job {
   id: string
@@ -89,37 +89,39 @@ const ViewJobs = () => {
     })
   }
   
-  const formatSalary = (min?: number, max?: number) => {
-    if (min === undefined && max === undefined) return 'Not specified'
-    const formatter = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    })
-    if (min !== undefined && max !== undefined) return `${formatter.format(min)} - ${formatter.format(max)}`
-    if (min !== undefined) return `From ${formatter.format(min)}`
-    if (max !== undefined) return `Up to ${formatter.format(max)}`
-    return 'Not specified'
+  const getStatusClass = (status: string) => {
+    const statusLower = status.toLowerCase()
+    switch(statusLower) {
+      case 'open':
+      case 'active':
+        return `${styles.statusBadge} ${styles.active}`
+      case 'hiring':
+        return `${styles.statusBadge} ${styles.hiring}`
+      case 'closed':
+      case 'expired':
+        return `${styles.statusBadge} ${styles.closed}`
+      default:
+        return `${styles.statusBadge} ${styles.draft}`
+    }
   }
   
   if (isLoading) {
     return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Loading jobs...</p>
+      <div className={styles.loader}>
+        <div className={styles.spinner}></div>
       </div>
     )
   }
   
   return (
-    <div className="view-jobs">
-      <div className="page-header">
+    <div className={styles.viewJobsContainer}>
+      <div className={styles.pageHeader}>
         <div>
-          <h1>View Jobs</h1>
-          <p>Select a job to review candidates</p>
+          <h1 className={styles.pageTitle}>View Jobs</h1>
+          <p className={styles.pageSubtitle}>Select a job to review candidates</p>
         </div>
         <button 
-          className="post-job-btn"
+          className={styles.postJobBtn}
           onClick={() => navigate('/recruiter/post-job')}
         >
           Post New Job
@@ -127,15 +129,16 @@ const ViewJobs = () => {
       </div>
       
       {jobs.length === 0 ? (
-        <div className="no-jobs-container">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-            <path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
-            <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
-          </svg>
-          <h3>No jobs posted yet</h3>
-          <p>Get started by posting your first job listing</p>
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="#9ca3af">
+              <path d="M20 6h-3V4c0-1.11-.89-2-2-2H9c-1.11 0-2 .89-2 2v2H4c-1.11 0-2 .89-2 2v11c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zM9 4h6v2H9V4zm11 15H4V8h16v11z"/>
+            </svg>
+          </div>
+          <h2 className={styles.emptyTitle}>No Jobs Posted Yet</h2>
+          <p className={styles.emptyText}>Start by posting your first job to attract candidates</p>
           <button 
-            className="post-first-job-btn"
+            className={styles.emptyAction}
             onClick={() => navigate('/recruiter/post-job')}
           >
             Post Your First Job
@@ -143,90 +146,98 @@ const ViewJobs = () => {
         </div>
       ) : (
         <>
-          <div className="jobs-section">
-            <h3>All Job Postings</h3>
-            <div className="jobs-table">
-              <div className="table-header">
-                <div className="col-title">Job Title</div>
-                <div className="col-location">Location</div>
-                <div className="col-applications">Applications</div>
-                <div className="col-posted">Posted Date</div>
-                <div className="col-status">Status</div>
-                <div className="col-actions">Actions</div>
-              </div>
-              <div className="table-body">
-                {jobs.map(job => (
-                  <div key={job.id} className="table-row">
-                    <div className="col-title">
-                      <button 
-                        className="job-title-link"
-                        onClick={() => handleJobClick(job.id)}
-                      >
-                        {job.title}
-                      </button>
-                    </div>
-                    <div className="col-location">{job.location}</div>
-                    <div className="col-applications">
-                      <span className="applications-count">
-                        {applicationsCount[job.id] || 0}
-                      </span>
-                    </div>
-                    <div className="col-posted">{formatDate(job.created_at)}</div>
-                    <div className="col-status">
-                      <span className={`status-badge ${job.status}`}>
-                        {job.status}
-                      </span>
-                    </div>
-                    <div className="col-actions">
-                      <button 
-                        className="action-menu-btn"
-                        onClick={() => setSelectedJob(selectedJob === job.id ? null : job.id)}
-                      >
-                        ⋮
-                      </button>
-                     {selectedJob === job.id && (
-                        <div className="action-menu">
-                            <button onClick={() => handleJobClick(job.id)}>View Details</button>
-                            <button onClick={() => navigate(`/recruiter/jobs/${job.id}/candidates`)}>
-                            View Candidates
-                            </button>
-
-                            {/* Status Controls */}
-                            {job.status === 'OPEN' && (
-                            <>
-                                <button onClick={() => handleStatusUpdate(job.id, 'HIRING')}>
-                                Mark as Hiring
-                                </button>
-                                <button onClick={() => handleStatusUpdate(job.id, 'EXPIRED')}>
-                                Close Job
-                                </button>
-                            </>
-                            )}
-
-                            {job.status === 'HIRING' && (
-                            <>
-                                <button onClick={() => handleStatusUpdate(job.id, 'OPEN')}>
-                                Set to Open
-                                </button>
-                                <button onClick={() => handleStatusUpdate(job.id, 'EXPIRED')}>
-                                Close Job
-                                </button>
-                            </>
-                            )}
-
-                            {job.status === 'EXPIRED' && (
-                            <>
-                                <button onClick={() => handleStatusUpdate(job.id, 'OPEN')}>
-                                Reopen Job
-                                </button>
-                            </>
-                            )}
-                        </div>
-                        )}
-                    </div>
+          <div className={styles.tableContainer}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>All Job Postings</h2>
+            </div>
+            
+            <div className={styles.tableHeader}>
+              <div>JOB TITLE</div>
+              <div>LOCATION</div>
+              <div>APPLICATIONS</div>
+              <div>POSTED DATE</div>
+              <div>STATUS</div>
+              <div>ACTIONS</div>
+            </div>
+            
+            <div className={styles.tableBody}>
+              {jobs.map((job) => (
+                <div key={job.id} className={styles.tableRow}>
+                  <div>
+                    <button 
+                      className={styles.jobTitleLink}
+                      onClick={() => handleJobClick(job.id)}
+                    >
+                      {job.title}
+                    </button>
                   </div>
-                ))}
-              </div>
+                  
+                  <div className={styles.colLocation}>
+                    {job.location}
+                  </div>
+                  
+                  <div>
+                    <span className={styles.applicationsCount}>
+                      {applicationsCount[job.id] || 0}
+                    </span>
+                  </div>
+                  
+                  <div className={styles.colPosted}>
+                    {formatDate(job.created_at)}
+                  </div>
+                  
+                  <div>
+                    <span className={getStatusClass(job.status)}>
+                      {job.status}
+                    </span>
+                  </div>
+                  
+                  <div className={styles.colActions}>
+                    <button
+                      className={styles.actionMenuBtn}
+                      onClick={() => setSelectedJob(selectedJob === job.id ? null : job.id)}
+                    >
+                      ⋮
+                    </button>
+                    {selectedJob === job.id && (
+                      <div className={styles.actionMenu}>
+                        <button onClick={() => handleJobClick(job.id)}>View Details</button>
+                        <button onClick={() => navigate(`/recruiter/jobs/${job.id}/candidates`)}>
+                          View Candidates
+                        </button>
+
+                        {job.status === 'OPEN' && (
+                          <>
+                            <button onClick={() => handleStatusUpdate(job.id, 'HIRING')}>
+                              Mark as Hiring
+                            </button>
+                            <button onClick={() => handleStatusUpdate(job.id, 'EXPIRED')}>
+                              Close Job
+                            </button>
+                          </>
+                        )}
+
+                        {job.status === 'HIRING' && (
+                          <>
+                            <button onClick={() => handleStatusUpdate(job.id, 'OPEN')}>
+                              Set to Open
+                            </button>
+                            <button onClick={() => handleStatusUpdate(job.id, 'EXPIRED')}>
+                              Close Job
+                            </button>
+                          </>
+                        )}
+
+                        {job.status === 'EXPIRED' && (
+                          <button onClick={() => handleStatusUpdate(job.id, 'OPEN')}>
+                            Reopen Job
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </>
@@ -235,4 +246,4 @@ const ViewJobs = () => {
   )
 }
 
-export default ViewJobs
+export default ViewJobs;

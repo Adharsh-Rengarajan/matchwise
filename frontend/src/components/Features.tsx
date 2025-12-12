@@ -1,3 +1,5 @@
+import styles from '../styles/features.module.css'
+
 const Features = () => {
   const features = [
     {
@@ -39,20 +41,20 @@ const Features = () => {
   ]
 
   return (
-    <section id="features" className="features">
-      <div className="container">
-        <div className="section-header">
-          <h2 className="section-title">Why MatchWise?</h2>
-          <p className="section-subtitle">
+    <section id="features" className={styles.features}>
+      <div className={styles.container}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Why MatchWise?</h2>
+          <p className={styles.sectionSubtitle}>
             Stop losing opportunities to ATS keyword filters. Find jobs that match your actual skills.
           </p>
         </div>
-        <div className="features-grid">
+        <div className={styles.featuresGrid}>
           {features.map(feature => (
-            <div key={feature.id} className="feature-card">
-              <div className="feature-icon">{feature.icon}</div>
-              <h3 className="feature-title">{feature.title}</h3>
-              <p className="feature-description">{feature.description}</p>
+            <div key={feature.id} className={styles.featureCard}>
+              <div className={styles.featureIcon}>{feature.icon}</div>
+              <h3 className={styles.featureTitle}>{feature.title}</h3>
+              <p className={styles.featureDescription}>{feature.description}</p>
             </div>
           ))}
         </div>

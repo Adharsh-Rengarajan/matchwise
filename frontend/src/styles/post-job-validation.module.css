@@ -1,0 +1,38 @@
+.error {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+}
+
+.error:focus {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+
+.validationError {
+  display: block;
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  font-weight: 500;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.salaryRangeError {
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #fef2f2;
+  border-left: 3px solid #ef4444;
+  border-radius: 0.25rem;
+}
