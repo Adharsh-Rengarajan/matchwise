@@ -2,21 +2,25 @@ from pydantic import BaseModel, EmailStr
 from datetime import date
 from typing import List, Optional
 
+
 class Experience(BaseModel):
     title: str
     company: str
     start_date: date
-    end_date: Optional[date]
+    end_date: Optional[date] = None
+
 
 class Education(BaseModel):
     degree: str
     institution: str
     start_date: date
-    end_date: Optional[date]
+    end_date: Optional[date] = None
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
 
 class RecruiterRegisterRequest(BaseModel):
     email: EmailStr
@@ -27,6 +31,7 @@ class RecruiterRegisterRequest(BaseModel):
     designation: Optional[str] = None
     role: str = "recruiter"
 
+
 class JobSeekerRegisterRequest(BaseModel):
     email: EmailStr
     password: str
@@ -36,3 +41,11 @@ class JobSeekerRegisterRequest(BaseModel):
     experience: List[Experience] = []
     education: List[Education] = []
     role: str = "jobseeker"
+
+
+class JobSeekerUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    skills: Optional[List[str]] = None
+    experience: Optional[List[Experience]] = None
+    education: Optional[List[Education]] = None
