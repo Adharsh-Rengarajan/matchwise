@@ -21,7 +21,7 @@ class JobService:
             "end_date": payload.end_date,
             "skills_required": payload.skills_required,
             "questions": [q.dict() for q in payload.questions] if payload.questions else [],
-            "status": "ACTIVE",
+            "status": "OPEN",
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow(),
         }
@@ -69,7 +69,7 @@ class JobService:
     async def search_jobs(filter_data):
         db = await get_database()
 
-        query = {"status": "ACTIVE"}
+        query = {"status": "OPEN"}
 
         if filter_data.location:
             query["location"] = {"$regex": filter_data.location, "$options": "i"}
