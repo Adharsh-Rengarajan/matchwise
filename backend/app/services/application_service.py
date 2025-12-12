@@ -8,6 +8,7 @@ import tempfile
 from pdfminer.high_level import extract_text
 import docx
 
+
 class ApplicationService:
 
     @staticmethod
@@ -32,9 +33,26 @@ class ApplicationService:
         db = await get_database()
         fs = AsyncIOMotorGridFSBucket(db)
 
-        existing = await db.applications.find_one({"job_id": job_id, "jobseeker_id": jobseeker_id})
+        existing = await db.applications.find_one({
+            "job_id": job_id,
+            "jobseeker_id": jobseeker_id,
+            "application_status": {"$ne": "PENDING"}
+        })
         if existing:
             return {"error": True, "message": "You have already applied to this job"}
+
+        pending_existing = await db.applications.find_one({
+            "job_id": job_id,
+            "jobseeker_id": jobseeker_id,
+            "application_status": "PENDING"
+        })
+        if pending_existing:
+            await db.applications.delete_one({"_id": pending_existing["_id"]})
+            if pending_existing.get("resume_file_id"):
+                try:
+                    await fs.delete(ObjectId(pending_existing["resume_file_id"]))
+                except:
+                    pass
 
         resume_bytes = await resume_file.read()
         file_id = await fs.upload_from_stream(resume_file.filename, resume_bytes)
@@ -119,9 +137,6 @@ class ApplicationService:
     @staticmethod
     async def add_note(application_id, note: dict):
         db = await get_database()
-        from datetime import datetime
-        from bson import ObjectId
-        from app.utils.mongo import sanitize_document
 
         note_id = str(ObjectId())
         note_data = {
@@ -145,9 +160,6 @@ class ApplicationService:
     @staticmethod
     async def delete_note(application_id: str, note_id: str):
         db = await get_database()
-        from datetime import datetime
-        from bson import ObjectId
-        from app.utils.mongo import sanitize_document
 
         result = await db.applications.find_one_and_update(
             {"_id": ObjectId(application_id)},
@@ -169,9 +181,6 @@ class ApplicationService:
     @staticmethod
     async def update_note(application_id: str, note_id: str, new_note: str):
         db = await get_database()
-        from datetime import datetime
-        from bson import ObjectId
-        from app.utils.mongo import sanitize_document
         
         result = await db.applications.find_one_and_update(
             {

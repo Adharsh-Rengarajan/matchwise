@@ -1,8 +1,8 @@
-from app.database import get_database
 from bson import ObjectId
 from datetime import datetime
+from app.database import get_database
 from app.utils.mongo import sanitize_document
-from app.utils.date import to_datetime
+
 
 class JobService:
 
@@ -10,31 +10,43 @@ class JobService:
     async def create_job(payload):
         db = await get_database()
 
-        job_dict = payload.dict()
-        job_dict["start_date"] = to_datetime(job_dict["start_date"])
-        job_dict["end_date"] = to_datetime(job_dict["end_date"]) if job_dict["end_date"] else None
-        job_dict["created_at"] = datetime.utcnow()
-        job_dict["updated_at"] = datetime.utcnow()
+        job_data = {
+            "recruiter_id": payload.recruiter_id,
+            "title": payload.title,
+            "description": payload.description,
+            "location": payload.location,
+            "type": payload.type,
+            "salary": payload.salary,
+            "start_date": payload.start_date,
+            "end_date": payload.end_date,
+            "skills_required": payload.skills_required,
+            "questions": [q.dict() for q in payload.questions] if payload.questions else [],
+            "status": "ACTIVE",
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        }
 
-        result = await db.jobs.insert_one(job_dict)
-        job_dict["_id"] = result.inserted_id
-        return sanitize_document(job_dict)
+        result = await db.jobs.insert_one(job_data)
+        job_data["_id"] = result.inserted_id
+
+        return sanitize_document(job_data)
 
     @staticmethod
     async def update_job_status(payload):
         db = await get_database()
 
-        job = await db.jobs.find_one({"_id": ObjectId(payload.job_id)})
-        if not job:
-            return None
-
-        await db.jobs.update_one(
+        result = await db.jobs.find_one_and_update(
             {"_id": ObjectId(payload.job_id)},
-            {"$set": {"status": payload.status, "updated_at": datetime.utcnow()}}
+            {
+                "$set": {
+                    "status": payload.status,
+                    "updated_at": datetime.utcnow(),
+                }
+            },
+            return_document=True,
         )
 
-        updated = await db.jobs.find_one({"_id": ObjectId(payload.job_id)})
-        return sanitize_document(updated)
+        return sanitize_document(result) if result else None
 
     @staticmethod
     async def get_jobs_by_recruiter(recruiter_id: str):
@@ -47,19 +59,20 @@ class JobService:
     async def get_job_by_id(job_id: str):
         db = await get_database()
 
-        job = await db.jobs.find_one({"_id": ObjectId(job_id)})
-        if not job:
+        if not ObjectId.is_valid(job_id):
             return None
 
-        return sanitize_document(job)
+        job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+        return sanitize_document(job) if job else None
 
     @staticmethod
     async def search_jobs(filter_data):
         db = await get_database()
-        query = {}
 
-        if filter_data.title:
-            query["title"] = {"$regex": filter_data.title, "$options": "i"}
+        query = {"status": "ACTIVE"}
+
+        if filter_data.location:
+            query["location"] = {"$regex": filter_data.location, "$options": "i"}
 
         if filter_data.keyword:
             keyword_regex = {"$regex": filter_data.keyword, "$options": "i"}
@@ -74,15 +87,16 @@ class JobService:
         cursor = db.jobs.find(query).sort("created_at", -1)
         return [sanitize_document(job) async for job in cursor]
 
-    # NEW METHOD: Top candidates ranked by match_result.score
     @staticmethod
     async def get_top_candidates(job_id: str):
         db = await get_database()
 
-        cursor = db.applications.find({"job_id": job_id})
+        cursor = db.applications.find({
+            "job_id": job_id,
+            "application_status": {"$ne": "PENDING"}
+        })
         apps = [sanitize_document(a) async for a in cursor]
 
-        # if no match results found
         for a in apps:
             if not a.get("match_result"):
                 a["match_result"] = {"score": 0}
