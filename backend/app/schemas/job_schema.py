@@ -56,4 +56,5 @@ class FilterRequest(BaseModel):
     title: Optional[str] = None
     keyword: Optional[str] = None
     type: Optional[str] = None
+    keyword: Optional[str] = None
     skills: Optional[List[str]] = None
