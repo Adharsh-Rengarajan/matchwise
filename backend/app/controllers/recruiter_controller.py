@@ -3,11 +3,11 @@ from app.services.user_service import UserService
 from app.utils.response import api_response
 from app.schemas.note_schema import ApplicationNoteSchema
 from app.services.application_service import ApplicationService
-
+from app.schemas.auth_schema import RecruiterRegisterRequest
 router = APIRouter(prefix="/recruiters", tags=["Recruiters"])
 
 @router.post("/register")
-async def register_recruiter(payload):
+async def register_recruiter(payload: RecruiterRegisterRequest): 
     try:
         user = await UserService.register(payload)
         return api_response(201, "Recruiter registered successfully", user)
