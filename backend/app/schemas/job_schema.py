@@ -55,6 +55,6 @@ class JobResponse(BaseModel):
 class FilterRequest(BaseModel):
     title: Optional[str] = None
     keyword: Optional[str] = None
+    location: Optional[str] = None
     type: Optional[str] = None
-    keyword: Optional[str] = None
     skills: Optional[List[str]] = None
