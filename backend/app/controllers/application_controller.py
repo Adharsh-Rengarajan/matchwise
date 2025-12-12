@@ -13,7 +13,7 @@ async def create_application(
     job_id: str = Form(...),
     jobseeker_id: str = Form(...),
     answers: str = Form(...),
-    application_status: str = Form("APPLIED"),
+    application_status: str = Form(...),
     resume: UploadFile = File(...)
 ):
     try:
