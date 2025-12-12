@@ -42,11 +42,10 @@ class UserService:
             "phone": user["phone"],
             "role": user["role"]
         }
-
+    
     @staticmethod
     async def get_user_by_id(user_id: str):
         db = await get_database()
-
         try:
             obj_id = ObjectId(user_id)
         except Exception as e:
@@ -56,34 +55,17 @@ class UserService:
         if not user:
             return None
 
-        name = user.get("name")
-        if name is None:
-            name = "Unknown"
-        if not isinstance(name, str):
-            name = str(name)
-            
-        email = user.get("email")
-        if email is None:
-            email = ""
-        if not isinstance(email, str):
-            email = str(email)
-            
-        phone = user.get("phone")
-        if phone is None:
-            phone = ""
-        if not isinstance(phone, str):
-            phone = str(phone)
-            
-        role = user.get("role")
-        if role is None:
-            role = "jobseeker"
-        if not isinstance(role, str):
-            role = str(role)
-
-        return {
+        result = {
             "userId": str(user["_id"]),
-            "email": email,
-            "name": name,
-            "phone": phone,
-            "role": role
+            "email": user.get("email", ""),
+            "name": user.get("name", "Unknown"),
+            "phone": user.get("phone", ""),
+            "role": user.get("role", "jobseeker")
         }
+        
+        # Add company and designation for recruiters
+        if result["role"] == "recruiter":
+            result["company"] = user.get("company", "")
+            result["designation"] = user.get("designation", "")
+        
+        return result
