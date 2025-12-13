@@ -216,7 +216,7 @@ const JobSeekerApplications = () => {
             <span className={styles.statValue}>
               {applications.filter(a => ['APPLIED', 'REVIEWING'].includes(a.application_status)).length}
             </span>
-            <span className={styles.statLabel}>Pending</span>
+            <span className={styles.statLabel}>APPLIED</span>
           </div>
         </div>
       </div>
