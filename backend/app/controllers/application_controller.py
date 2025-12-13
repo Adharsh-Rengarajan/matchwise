@@ -68,7 +68,7 @@ async def get_application(application_id: str):
         raise HTTPException(500, f"Error fetching application: {str(e)}")
 
 
-@router.patch("/{application_id}/", dependencies=[Depends(require_auth(["recruiter"]))])
+@router.patch("/{application_id}/", dependencies=[Depends(require_auth())])
 async def update_application_status(application_id: str, payload: dict):
     try:
         if not ObjectId.is_valid(application_id):
