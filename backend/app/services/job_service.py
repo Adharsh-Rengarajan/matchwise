@@ -1,5 +1,5 @@
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, date
 from app.database import get_database
 from app.utils.mongo import sanitize_document
 
@@ -10,6 +10,13 @@ class JobService:
     async def create_job(payload):
         db = await get_database()
 
+        def convert_date_to_datetime(d):
+            if d is None:
+                return None
+            if isinstance(d, date) and not isinstance(d, datetime):
+                return datetime.combine(d, datetime.min.time())
+            return d
+
         job_data = {
             "recruiter_id": payload.recruiter_id,
             "title": payload.title,
@@ -17,8 +24,8 @@ class JobService:
             "location": payload.location,
             "type": payload.type,
             "salary": payload.salary,
-            "start_date": payload.start_date,
-            "end_date": payload.end_date,
+            "start_date": convert_date_to_datetime(payload.start_date),
+            "end_date": convert_date_to_datetime(payload.end_date),
             "skills_required": payload.skills_required,
             "questions": [q.dict() for q in payload.questions] if payload.questions else [],
             "status": "OPEN",
@@ -74,32 +81,39 @@ class JobService:
         if filter_data.location:
             query["location"] = {"$regex": filter_data.location, "$options": "i"}
 
-        if filter_data.keyword:
-            keyword_regex = {"$regex": filter_data.keyword, "$options": "i"}
-            query["$or"] = [{"title": keyword_regex}, {"description": keyword_regex}]
-
         if filter_data.type:
             query["type"] = filter_data.type
 
+        if filter_data.title:
+            query["title"] = {"$regex": filter_data.title, "$options": "i"}
+
+        if filter_data.keyword:
+            query["$or"] = [
+                {"title": {"$regex": filter_data.keyword, "$options": "i"}},
+                {"description": {"$regex": filter_data.keyword, "$options": "i"}},
+            ]
+
         if filter_data.skills:
-            query["skills_required"] = {"$all": filter_data.skills}
+            query["skills_required"] = {"$in": filter_data.skills}
 
         cursor = db.jobs.find(query).sort("created_at", -1)
-        return [sanitize_document(job) async for job in cursor]
+        jobs = [sanitize_document(job) async for job in cursor]
+
+        return {"results": jobs, "count": len(jobs)}
 
     @staticmethod
     async def get_top_candidates(job_id: str):
         db = await get_database()
 
-        cursor = db.applications.find({
-            "job_id": job_id,
-            "application_status": {"$ne": "PENDING"}
-        })
-        apps = [sanitize_document(a) async for a in cursor]
+        job = await JobService.get_job_by_id(job_id)
+        if not job:
+            return []
 
-        for a in apps:
-            if not a.get("match_result"):
-                a["match_result"] = {"score": 0}
+        applications = []
+        cursor = db.applications.find({"job_id": job_id}).sort(
+            "match_result.score", -1
+        )
+        async for app in cursor:
+            applications.append(sanitize_document(app))
 
-        apps = sorted(apps, key=lambda x: x["match_result"]["score"], reverse=True)
-        return apps
+        return applications
