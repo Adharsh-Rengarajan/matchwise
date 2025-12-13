@@ -1,8 +1,9 @@
 from bson import ObjectId
 from datetime import datetime, date
-from app.database import get_database
 from app.utils.mongo import sanitize_document
 from app.models.user_factory import UserFactory
+from app.repository.user_repository import UserRepository
+from app.database import get_database
 import bcrypt
 
 
@@ -20,9 +21,7 @@ class UserService:
 
     @staticmethod
     async def register(payload):
-        db = await get_database()
-
-        existing = await db.users.find_one({"email": payload.email})
+        existing = await UserRepository.find_by_email(payload.email)
         if existing:
             raise ValueError("Email already registered")
 
@@ -40,16 +39,14 @@ class UserService:
         user_dict = user.to_dict()
         user_dict = convert_dates(user_dict)
 
-        result = await db.users.insert_one(user_dict)
-        user_dict["_id"] = result.inserted_id
+        inserted_id = await UserRepository.insert_one(user_dict)
+        user_dict["_id"] = inserted_id
 
         return sanitize_document(user_dict)
 
     @staticmethod
     async def login(email: str, password: str):
-        db = await get_database()
-
-        user = await db.users.find_one({"email": email})
+        user = await UserRepository.find_by_email(email)
         if not user:
             return None
 
@@ -60,20 +57,13 @@ class UserService:
 
     @staticmethod
     async def get_user_by_id(user_id: str):
-        db = await get_database()
-
-        if not ObjectId.is_valid(user_id):
-            return None
-
-        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        user = await UserRepository.find_by_id(user_id)
         if user:
             return sanitize_document(user)
         return None
 
     @staticmethod
     async def update_jobseeker_profile(user_id: str, update_data: dict):
-        db = await get_database()
-
         if "experience" in update_data and update_data["experience"] is not None:
             update_data["experience"] = [convert_dates(exp) if isinstance(exp, dict) else exp.dict() if hasattr(exp, 'dict') else exp for exp in update_data["experience"]]
             update_data["experience"] = convert_dates(update_data["experience"])
@@ -89,12 +79,31 @@ class UserService:
 
         clean_data["updated_at"] = datetime.utcnow()
 
-        result = await db.users.find_one_and_update(
-            {"_id": ObjectId(user_id)},
-            {"$set": clean_data},
-            return_document=True
-        )
-
+        result = await UserRepository.update_by_id(user_id, clean_data)
         if result:
             return sanitize_document(result)
         return None
+
+    @staticmethod
+    async def search_jobseekers(filters: dict):
+        query = {"role": "jobseeker"}
+
+        if filters.get("skills"):
+            query["skills"] = {"$in": filters["skills"]}
+
+        if filters.get("location"):
+            query["location"] = {"$regex": filters["location"], "$options": "i"}
+
+        page = filters.get("page", 1)
+        limit = filters.get("limit", 10)
+        skip = (page - 1) * limit
+
+        jobseekers = await UserRepository.find_jobseekers(query, skip, limit)
+        total = await UserRepository.count_jobseekers(query)
+
+        return {
+            "data": [sanitize_document(js) for js in jobseekers],
+            "total": total,
+            "page": page,
+            "limit": limit
+        }

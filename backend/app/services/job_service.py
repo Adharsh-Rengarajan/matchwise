@@ -1,15 +1,14 @@
 from bson import ObjectId
 from datetime import datetime, date
-from app.database import get_database
 from app.utils.mongo import sanitize_document
+from app.repository.job_repository import JobRepository
+from app.database import get_database
 
 
 class JobService:
 
     @staticmethod
     async def create_job(payload):
-        db = await get_database()
-
         def convert_date_to_datetime(d):
             if d is None:
                 return None
@@ -33,49 +32,33 @@ class JobService:
             "updated_at": datetime.utcnow(),
         }
 
-        result = await db.jobs.insert_one(job_data)
-        job_data["_id"] = result.inserted_id
+        inserted_id = await JobRepository.insert_one(job_data)
+        job_data["_id"] = inserted_id
 
         return sanitize_document(job_data)
 
     @staticmethod
     async def update_job_status(payload):
-        db = await get_database()
+        update_data = {
+            "status": payload.status,
+            "updated_at": datetime.utcnow(),
+        }
 
-        result = await db.jobs.find_one_and_update(
-            {"_id": ObjectId(payload.job_id)},
-            {
-                "$set": {
-                    "status": payload.status,
-                    "updated_at": datetime.utcnow(),
-                }
-            },
-            return_document=True,
-        )
-
+        result = await JobRepository.update_by_id(payload.job_id, update_data)
         return sanitize_document(result) if result else None
 
     @staticmethod
     async def get_jobs_by_recruiter(recruiter_id: str):
-        db = await get_database()
-
-        cursor = db.jobs.find({"recruiter_id": recruiter_id}).sort("created_at", -1)
-        return [sanitize_document(job) async for job in cursor]
+        jobs = await JobRepository.find_by_recruiter(recruiter_id)
+        return [sanitize_document(job) for job in jobs]
 
     @staticmethod
     async def get_job_by_id(job_id: str):
-        db = await get_database()
-
-        if not ObjectId.is_valid(job_id):
-            return None
-
-        job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+        job = await JobRepository.find_by_id(job_id)
         return sanitize_document(job) if job else None
 
     @staticmethod
     async def search_jobs(filter_data):
-        db = await get_database()
-
         query = {"status": "OPEN"}
 
         if filter_data.location:
@@ -96,10 +79,8 @@ class JobService:
         if filter_data.skills:
             query["skills_required"] = {"$in": filter_data.skills}
 
-        cursor = db.jobs.find(query).sort("created_at", -1)
-        jobs = [sanitize_document(job) async for job in cursor]
-
-        return {"results": jobs, "count": len(jobs)}
+        jobs = await JobRepository.find_with_filters(query)
+        return {"results": [sanitize_document(job) for job in jobs], "count": len(jobs)}
 
     @staticmethod
     async def get_top_candidates(job_id: str):
