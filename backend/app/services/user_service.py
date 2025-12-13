@@ -4,7 +4,7 @@ from app.utils.mongo import sanitize_document
 from app.models.user_factory import UserFactory
 from app.repository.user_repository import UserRepository
 from app.database import get_database
-from backend.app.utils.jwt_utils import create_access_token
+from app.utils.jwt_utils import create_access_token
 import bcrypt
 
 
