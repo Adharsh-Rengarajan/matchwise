@@ -1,15 +1,16 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Response
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Response, Depends
 from typing import Optional, List
 from app.services.application_service import ApplicationService
 from app.services.job_service import JobService
 from app.utils.response import api_response
 from bson import ObjectId
 import json
+from app.middleware.auth_middleware import require_auth
 
 router = APIRouter(prefix="/applications", tags=["Applications"])
 
 
-@router.post("/")
+@router.post("/", dependencies=[Depends(require_auth(["jobseeker"]))])
 async def create_application(
     job_id: str = Form(...),
     jobseeker_id: str = Form(...),
@@ -50,7 +51,7 @@ async def create_application(
         raise HTTPException(500, f"Error creating application: {str(e)}")
 
 
-@router.get("/{application_id}/")
+@router.get("/{application_id}/", dependencies=[Depends(require_auth())])
 async def get_application(application_id: str):
     try:
         if not ObjectId.is_valid(application_id):
@@ -67,7 +68,7 @@ async def get_application(application_id: str):
         raise HTTPException(500, f"Error fetching application: {str(e)}")
 
 
-@router.patch("/{application_id}/")
+@router.patch("/{application_id}/", dependencies=[Depends(require_auth(["recruiter"]))])
 async def update_application_status(application_id: str, payload: dict):
     try:
         if not ObjectId.is_valid(application_id):
@@ -93,7 +94,7 @@ async def update_application_status(application_id: str, payload: dict):
         raise HTTPException(500, f"Error updating application: {str(e)}")
 
 
-@router.get("/resume/{file_id}/")
+@router.get("/resume/{file_id}/", dependencies=[Depends(require_auth())])
 async def get_resume(file_id: str):
     try:
         if not ObjectId.is_valid(file_id):
@@ -112,7 +113,7 @@ async def get_resume(file_id: str):
         raise HTTPException(500, f"Error fetching resume: {str(e)}")
 
 
-@router.post("/{application_id}/notes/")
+@router.post("/{application_id}/notes/", dependencies=[Depends(require_auth(["recruiter"]))])
 async def add_note(application_id: str, payload: dict):
     try:
         if not ObjectId.is_valid(application_id):
@@ -137,7 +138,21 @@ async def add_note(application_id: str, payload: dict):
         raise HTTPException(500, f"Error adding note: {str(e)}")
 
 
-@router.get("/jobseeker/{jobseeker_id}/")
+@router.get("/job/{job_id}/", dependencies=[Depends(require_auth(["recruiter"]))])
+async def get_job_applications(job_id: str):
+    try:
+        if not ObjectId.is_valid(job_id):
+            raise HTTPException(400, "Invalid job ID")
+
+        applications = await ApplicationService.get_applications_by_job(job_id)
+        return api_response(200, "Applications retrieved", applications)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Error fetching applications: {str(e)}")
+
+
+@router.get("/jobseeker/{jobseeker_id}/", dependencies=[Depends(require_auth(["jobseeker"]))])
 async def get_applications_by_jobseeker(jobseeker_id: str):
     try:
         applications = await ApplicationService.get_applications_by_jobseeker(jobseeker_id)

@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from app.schemas.auth_schema import JobSeekerRegisterRequest, JobSeekerUpdateRequest
 from app.services.user_service import UserService
 from app.utils.response import api_response
 from bson import ObjectId
+from app.middleware.auth_middleware import require_auth
 
 router = APIRouter(prefix="/jobseekers", tags=["JobSeekers"])
 
@@ -16,7 +17,7 @@ async def register_jobseeker(payload: JobSeekerRegisterRequest):
         raise HTTPException(400, str(e))
 
 
-@router.get("/{jobseeker_id}")
+@router.get("/{jobseeker_id}", dependencies=[Depends(require_auth())])
 async def get_jobseeker_profile(jobseeker_id: str):
     try:
         if not ObjectId.is_valid(jobseeker_id):
@@ -37,7 +38,7 @@ async def get_jobseeker_profile(jobseeker_id: str):
         raise HTTPException(500, f"Error fetching profile: {str(e)}")
 
 
-@router.patch("/{jobseeker_id}")
+@router.patch("/{jobseeker_id}", dependencies=[Depends(require_auth(["jobseeker"]))])
 async def update_jobseeker_profile(jobseeker_id: str, payload: JobSeekerUpdateRequest):
     try:
         if not ObjectId.is_valid(jobseeker_id):

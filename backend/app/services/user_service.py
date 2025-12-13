@@ -4,6 +4,7 @@ from app.utils.mongo import sanitize_document
 from app.models.user_factory import UserFactory
 from app.repository.user_repository import UserRepository
 from app.database import get_database
+from backend.app.utils.jwt_utils import create_access_token
 import bcrypt
 
 
@@ -42,7 +43,18 @@ class UserService:
         inserted_id = await UserRepository.insert_one(user_dict)
         user_dict["_id"] = inserted_id
 
-        return sanitize_document(user_dict)
+        token = create_access_token({
+            "user_id": str(inserted_id),
+            "email": payload.email,
+            "role": payload.role
+        })
+
+        user_response = sanitize_document(user_dict)
+        user_response["token"] = token
+        if "password" in user_response:
+            del user_response["password"]
+
+        return user_response
 
     @staticmethod
     async def login(email: str, password: str):
@@ -53,17 +65,34 @@ class UserService:
         if not bcrypt.checkpw(password.encode(), user["password"].encode()):
             return None
 
-        return sanitize_document(user)
+        token = create_access_token({
+            "user_id": str(user["_id"]),
+            "email": user["email"],
+            "role": user["role"]
+        })
+
+        user_response = sanitize_document(user)
+        user_response["token"] = token
+        if "password" in user_response:
+            del user_response["password"]
+
+        return user_response
 
     @staticmethod
     async def get_user_by_id(user_id: str):
         user = await UserRepository.find_by_id(user_id)
         if user:
-            return sanitize_document(user)
+            sanitized = sanitize_document(user)
+            if "password" in sanitized:
+                del sanitized["password"]
+            return sanitized
         return None
 
     @staticmethod
     async def update_jobseeker_profile(user_id: str, update_data: dict):
+        if "password" in update_data:
+            del update_data["password"]
+
         if "experience" in update_data and update_data["experience"] is not None:
             update_data["experience"] = [convert_dates(exp) if isinstance(exp, dict) else exp.dict() if hasattr(exp, 'dict') else exp for exp in update_data["experience"]]
             update_data["experience"] = convert_dates(update_data["experience"])
@@ -81,7 +110,10 @@ class UserService:
 
         result = await UserRepository.update_by_id(user_id, clean_data)
         if result:
-            return sanitize_document(result)
+            sanitized = sanitize_document(result)
+            if "password" in sanitized:
+                del sanitized["password"]
+            return sanitized
         return None
 
     @staticmethod

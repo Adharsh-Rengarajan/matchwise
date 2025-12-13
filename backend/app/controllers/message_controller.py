@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from app.schemas.message_schema import MessageSchema
 from app.services.message_service import MessageService
 from app.utils.response import api_response
+from app.middleware.auth_middleware import require_auth
 
 router = APIRouter(prefix="/messages", tags=["Messages"])
 
-@router.post("/")
+@router.post("/", dependencies=[Depends(require_auth())])
 async def send_message(payload: MessageSchema):
     try:
         saved = await MessageService.send_message(payload.dict())
@@ -13,7 +14,7 @@ async def send_message(payload: MessageSchema):
     except Exception as e:
         raise HTTPException(500, f"Error sending message: {str(e)}")
 
-@router.get("/{user1}/{user2}")
+@router.get("/{user1}/{user2}", dependencies=[Depends(require_auth())])
 async def get_conversation(user1: str, user2: str):
     try:
         msgs = await MessageService.get_conversation(user1, user2)
@@ -21,7 +22,7 @@ async def get_conversation(user1: str, user2: str):
     except Exception as e:
         raise HTTPException(500, f"Error retrieving conversation: {str(e)}")
 
-@router.get("/recruiter/{recruiter_id}")
+@router.get("/recruiter/{recruiter_id}", dependencies=[Depends(require_auth(["recruiter"]))])
 async def get_recruiter_conversations(recruiter_id: str):
     try:
         conversations = await MessageService.get_conversations_for_recruiter(recruiter_id)
@@ -29,7 +30,7 @@ async def get_recruiter_conversations(recruiter_id: str):
     except Exception as e:
         raise HTTPException(500, f"Error retrieving conversations: {str(e)}")
 
-@router.patch("/mark-read")
+@router.patch("/mark-read", dependencies=[Depends(require_auth())])
 async def mark_as_read(payload: dict = Body(...)):
     try:
         sender_id = payload.get("sender_id")

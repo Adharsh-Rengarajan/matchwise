@@ -1,9 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from app.services.user_service import UserService
 from app.utils.response import api_response
 from app.schemas.note_schema import ApplicationNoteSchema
 from app.services.application_service import ApplicationService
 from app.schemas.auth_schema import RecruiterRegisterRequest
+from app.middleware.auth_middleware import require_auth
+
 router = APIRouter(prefix="/recruiters", tags=["Recruiters"])
 
 @router.post("/register")
@@ -14,7 +16,7 @@ async def register_recruiter(payload: RecruiterRegisterRequest):
     except ValueError as e:
         raise HTTPException(400, str(e))
 
-@router.post("/applications/{application_id}/notes")
+@router.post("/applications/{application_id}/notes", dependencies=[Depends(require_auth(["recruiter"]))])
 async def add_note(application_id: str, payload: dict):
     try:
         note_data = {
@@ -35,7 +37,7 @@ async def add_note(application_id: str, payload: dict):
     except Exception as e:
         raise HTTPException(500, f"Error adding note: {str(e)}")
 
-@router.delete("/applications/{application_id}/notes/{note_id}")
+@router.delete("/applications/{application_id}/notes/{note_id}", dependencies=[Depends(require_auth(["recruiter"]))])
 async def delete_note(application_id: str, note_id: str):
     try:
         updated = await ApplicationService.delete_note(application_id, note_id)
@@ -48,7 +50,7 @@ async def delete_note(application_id: str, note_id: str):
     except Exception as e:
         raise HTTPException(500, f"Error deleting note: {str(e)}")
 
-@router.put("/applications/{application_id}/notes/{note_id}")
+@router.put("/applications/{application_id}/notes/{note_id}", dependencies=[Depends(require_auth(["recruiter"]))])
 async def update_note(application_id: str, note_id: str, payload: dict):
     try:
         new_note = payload.get("note")

@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from app.services.user_service import UserService
 from app.utils.response import api_response
+from app.middleware.auth_middleware import require_auth
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-@router.get("/{user_id}")
+@router.get("/{user_id}", dependencies=[Depends(require_auth())])
 async def get_user_by_id(user_id: str):
     try:
         user = await UserService.get_user_by_id(user_id)
