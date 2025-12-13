@@ -165,22 +165,21 @@ const TopCandidates = () => {
   }
 
   const handleDownloadResume = async (fileId: string) => {
-    try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
-      const response = await fetch(`${baseUrl}/applications/resume/${fileId}/`)
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `resume_${fileId}.pdf`
-        a.click()
-        window.URL.revokeObjectURL(url)
-      }
-    } catch (error) {
-      console.error('Failed to download resume:', error)
+  try {
+    const response = await apiRequest(API_ENDPOINTS.GET_RESUME(fileId))
+    if (response.ok) {
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `resume_${fileId}.pdf`
+      a.click()
+      window.URL.revokeObjectURL(url)
     }
+  } catch (error) {
+    console.error('Failed to download resume:', error)
   }
+}
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return '#10b981'

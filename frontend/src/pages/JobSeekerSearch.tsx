@@ -44,9 +44,8 @@ const JobSeekerSearch = () => {
 
   const fetchCompanyName = async (recruiterId: string): Promise<string> => {
     try {
-      const response = await apiRequest(
-        `${API_ENDPOINTS.LOGIN.split('/auth')[0]}/users/${recruiterId}`
-      )
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
+      const response = await apiRequest(`${API_BASE_URL}/users/${recruiterId}`)
       if (response.ok) {
         const data = await response.json()
         return data.data?.company || 'Company Name'

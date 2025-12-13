@@ -36,6 +36,10 @@ const Login = () => {
         localStorage.setItem("user", JSON.stringify(normalizedUser))
         localStorage.setItem("userType", backendUser.role)
 
+          if (backendUser.token) {
+            localStorage.setItem('token', backendUser.token)
+          }
+
         if (backendUser.role === "recruiter") {
           navigate("/recruiter/dashboard")
         } else {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { apiRequest, API_ENDPOINTS } from '../config/api'
 import styles from '../styles/jobseeker-job-detail.module.css'
 
 interface Job {
@@ -59,9 +60,7 @@ const JobSeekerJobDetail = () => {
   const fetchJobDetails = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/jobs/job/${jobId}`
-      )
+      const response = await apiRequest(API_ENDPOINTS.GET_JOB_BY_ID(jobId!))
 
       if (response.ok) {
         const data = await response.json()
@@ -79,9 +78,7 @@ const JobSeekerJobDetail = () => {
 
   const checkApplicationStatus = async () => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/applications/jobseeker/${userId}/`
-      )
+      const response = await apiRequest(API_ENDPOINTS.GET_APPLICATIONS_BY_JOBSEEKER(userId))
 
       if (response.ok) {
         const data = await response.json()
@@ -154,13 +151,10 @@ const JobSeekerJobDetail = () => {
 
       formData.append('answers', JSON.stringify(answersArray))
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/applications/`,
-        {
-          method: 'POST',
-          body: formData
-        }
-      )
+      const response = await apiRequest(API_ENDPOINTS.CREATE_APPLICATION, {
+        method: 'POST',
+        body: formData
+      })
 
       const data = await response.json()
 
@@ -207,18 +201,12 @@ const JobSeekerJobDetail = () => {
     }
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'}/applications/${applicationId}/`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            application_status: 'APPLIED'
-          })
-        }
-      )
+      const response = await apiRequest(API_ENDPOINTS.UPDATE_APPLICATION_STATUS(applicationId), {
+        method: 'PATCH',
+        body: JSON.stringify({
+          application_status: 'APPLIED'
+        })
+      })
 
       if (response.ok) {
         setHasApplied(true)
@@ -399,7 +387,7 @@ const JobSeekerJobDetail = () => {
               onClick={handleAnalyzeResume}
               disabled={isAnalyzing || !resumeFile}
             >
-              {isAnalyzing ? 'Analyzing...' : 'Upload & Analyze'}
+              {isAnalyzing ? 'Analyzing Resume...' : 'Analyze Resume & Apply'}
             </button>
           </div>
         )}
@@ -407,22 +395,22 @@ const JobSeekerJobDetail = () => {
         {stage === 'analyzing' && (
           <div className={styles.analyzingSection}>
             <div className={styles.spinner}></div>
-            <p>Analyzing your resume...</p>
+            <p>Analyzing your resume</p>
             <p className={styles.analyzeSubtext}>
-              Our AI is evaluating your qualifications against this job
+              Our AI is matching your skills with the job requirements...
             </p>
           </div>
         )}
 
         {stage === 'result' && matchResult && (
           <div className={styles.resultSection}>
-            <h3>Match Score Results</h3>
+            <h3>Match Analysis</h3>
             <div className={styles.scoreContainer}>
-              <div
+              <div 
                 className={styles.scoreCircle}
                 style={{ borderColor: getMatchColor(matchResult.score) }}
               >
-                <span
+                <span 
                   className={styles.scoreText}
                   style={{ color: getMatchColor(matchResult.score) }}
                 >
@@ -460,7 +448,7 @@ const JobSeekerJobDetail = () => {
                 <div className={styles.skillsList}>
                   {matchResult.missing_skills.map((skill, index) => (
                     <span key={index} className={styles.missingSkill}>
-                      ○ {skill}
+                      ◯ {skill}
                     </span>
                   ))}
                 </div>

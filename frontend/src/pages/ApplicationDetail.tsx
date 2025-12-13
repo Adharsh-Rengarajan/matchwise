@@ -99,8 +99,7 @@ const ApplicationDetail = () => {
   
   const fetchApplicationDetails = async () => {
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
-      const response = await apiRequest(`${baseUrl}/applications/${applicationId}`)
+      const response = await apiRequest(API_ENDPOINTS.GET_APPLICATION_BY_ID(applicationId!))
       
       if (response.ok) {
         const data = await response.json()
@@ -116,7 +115,7 @@ const ApplicationDetail = () => {
           }
 
           if (data.data.jobseeker_id) {
-            const jobseekerResponse = await apiRequest(`${baseUrl}/users/${data.data.jobseeker_id}`)
+            const jobseekerResponse = await apiRequest(API_ENDPOINTS.GET_JOBSEEKER_PROFILE(data.data.jobseeker_id))
             if (jobseekerResponse.ok) {
               const jobseekerData = await jobseekerResponse.json()
               setJobseeker(jobseekerData.data)
@@ -139,8 +138,7 @@ const ApplicationDetail = () => {
     setStatusMessage('')
     
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
-      const response = await apiRequest(`${baseUrl}/applications/${applicationId}/`, {
+      const response = await apiRequest(API_ENDPOINTS.UPDATE_APPLICATION_STATUS(applicationId!), {
         method: 'PATCH',
         body: JSON.stringify({
           application_status: newStatus
@@ -171,8 +169,7 @@ const ApplicationDetail = () => {
     
     setIsAddingNote(true)
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
-      const response = await apiRequest(`${baseUrl}/recruiters/applications/${applicationId}/notes`, {
+      const response = await apiRequest(API_ENDPOINTS.ADD_NOTE(applicationId!), {
         method: 'POST',
         body: JSON.stringify({
           recruiter_id: user.id || user.userId,
@@ -194,8 +191,7 @@ const ApplicationDetail = () => {
 
   const handleDeleteNote = async (noteId: string) => {
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
-      const response = await apiRequest(`${baseUrl}/recruiters/applications/${applicationId}/notes/${noteId}`, {
+      const response = await apiRequest(`${API_ENDPOINTS.ADD_NOTE(applicationId!)}/${noteId}`, {
         method: 'DELETE'
       })
 
@@ -212,8 +208,7 @@ const ApplicationDetail = () => {
     if (!editingNoteText.trim()) return
     
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
-      const response = await apiRequest(`${baseUrl}/recruiters/applications/${applicationId}/notes/${noteId}`, {
+      const response = await apiRequest(`${API_ENDPOINTS.ADD_NOTE(applicationId!)}/${noteId}`, {
         method: 'PUT',
         body: JSON.stringify({
           note: editingNoteText.trim()
@@ -235,8 +230,7 @@ const ApplicationDetail = () => {
     if (!application) return
     
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
-      const response = await fetch(`${baseUrl}/applications/resume/${application.resume_file_id}/`)
+      const response = await apiRequest(API_ENDPOINTS.GET_RESUME(application.resume_file_id))
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
@@ -256,8 +250,7 @@ const ApplicationDetail = () => {
 
     setIsSendingReachOut(true)
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
-      const response = await apiRequest(`${baseUrl}/messages/`, {
+      const response = await apiRequest(API_ENDPOINTS.SEND_MESSAGE, {
         method: 'POST',
         body: JSON.stringify({
           sender_id: user.id,

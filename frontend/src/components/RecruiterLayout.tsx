@@ -7,12 +7,12 @@ const RecruiterLayout = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   
-  const handleLogout = () => {
-    localStorage.removeItem('user')
-    localStorage.removeItem('userType')
-    localStorage.removeItem('rememberMe')
-    navigate('/login')
-  }
+ const handleLogout = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+  localStorage.removeItem('userType')
+  navigate('/login')
+}
   
   return (
     <div className={styles.recruiterLayout}>

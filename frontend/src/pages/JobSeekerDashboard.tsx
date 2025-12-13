@@ -41,9 +41,8 @@ const JobSeekerDashboard = () => {
 
   const fetchCompanyName = async (recruiterId: string): Promise<string> => {
     try {
-      const response = await apiRequest(
-        `${API_ENDPOINTS.LOGIN.split('/auth')[0]}/users/${recruiterId}`
-      )
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
+      const response = await apiRequest(`${API_BASE_URL}/users/${recruiterId}`)
       if (response.ok) {
         const data = await response.json()
         return data.data?.company || 'Company'
@@ -57,15 +56,9 @@ const JobSeekerDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}')
-      const token = localStorage.getItem('token')
       const userId = user._id || user.id
 
-      const response = await apiRequest(
-        API_ENDPOINTS.GET_APPLICATIONS_BY_JOBSEEKER(userId),
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      )
+      const response = await apiRequest(API_ENDPOINTS.GET_APPLICATIONS_BY_JOBSEEKER(userId))
 
       if (!response.ok) {
         throw new Error('Failed to fetch applications')

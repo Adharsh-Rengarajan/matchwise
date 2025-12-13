@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import styles from '../styles/messages.module.css'
 import { API_ENDPOINTS, apiRequest } from '../config/api'
-import { sendMessage } from '../utils/sendMessage'
 
 interface Conversation {
   _id: string
@@ -22,6 +21,12 @@ interface Message {
   isOpened: boolean
 }
 
+interface SendMessageParams {
+  sender_id: string
+  receiver_id: string
+  content: string
+}
+
 const Messages = () => {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
@@ -32,7 +37,6 @@ const Messages = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const user = JSON.parse(localStorage.getItem('user') || '{}')
-  const token = localStorage.getItem('token')
   const userId = user._id || user.id
 
   useEffect(() => {
@@ -85,12 +89,7 @@ const Messages = () => {
   const fetchConversations = async () => {
     try {
       setLoading(true)
-      const response = await apiRequest(
-        API_ENDPOINTS.GET_RECRUITER_CONVERSATIONS(userId),
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      )
+      const response = await apiRequest(API_ENDPOINTS.GET_RECRUITER_CONVERSATIONS(userId))
       const data = await response.json()
 
       const conversationList: Conversation[] = (data.data || []).map((conv: any) => {
@@ -119,12 +118,7 @@ const Messages = () => {
 
   const fetchMessages = async (otherUserId: string) => {
     try {
-      const response = await apiRequest(
-        API_ENDPOINTS.GET_CONVERSATION(userId, otherUserId),
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      )
+      const response = await apiRequest(API_ENDPOINTS.GET_CONVERSATION(userId, otherUserId))
       const data = await response.json()
       setMessages(data.data || [])
     } catch (error) {
@@ -134,22 +128,38 @@ const Messages = () => {
 
   const markAsRead = async (otherUserId: string) => {
     try {
-      await apiRequest(
-        API_ENDPOINTS.MARK_MESSAGES_READ,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            sender_id: otherUserId,
-            receiver_id: userId
-          })
-        }
-      )
+      await apiRequest(API_ENDPOINTS.MARK_MESSAGES_READ, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          sender_id: otherUserId,
+          receiver_id: userId
+        })
+      })
     } catch (error) {
       console.error('Error marking as read:', error)
+    }
+  }
+
+  const sendMessage = async (params: SendMessageParams) => {
+    try {
+      const response = await apiRequest(API_ENDPOINTS.SEND_MESSAGE, {
+        method: 'POST',
+        body: JSON.stringify({
+          sender_id: params.sender_id,
+          receiver_id: params.receiver_id,
+          content: params.content,
+          message_type: 'text',
+          isOpened: false
+        })
+      })
+
+      if (response.ok) {
+        return { success: true }
+      }
+      return { success: false }
+    } catch (error) {
+      console.error('Error sending message:', error)
+      return { success: false }
     }
   }
 
@@ -162,8 +172,7 @@ const Messages = () => {
     const result = await sendMessage({
       sender_id: userId,
       receiver_id: selected._id,
-      content: messageInput,
-      token: token || ''
+      content: messageInput
     })
 
     if (result.success) {

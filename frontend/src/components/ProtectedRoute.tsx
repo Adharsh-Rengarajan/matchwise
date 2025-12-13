@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import { isAuthenticated } from '../utils/auth'
 
 interface ProtectedRouteProps {
   children: ReactNode
@@ -11,11 +12,10 @@ const ProtectedRoute = ({ children, userType }: ProtectedRouteProps) => {
   const storedUserType = localStorage.getItem("userType")
 
   const userId = user.id || user._id || user.userId
-
-  const isAuthenticated = !!userId
+  const authenticated = isAuthenticated() && !!userId
   const isCorrectRole = storedUserType === userType
 
-  if (!isAuthenticated || !isCorrectRole) {
+  if (!authenticated || !isCorrectRole) {
     return <Navigate to="/login" replace />
   }
 

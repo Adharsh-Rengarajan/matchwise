@@ -6,11 +6,11 @@ const JobSeekerLayout = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
 
   const handleLogout = () => {
-    localStorage.removeItem('user')
-    localStorage.removeItem('userType')
-    localStorage.removeItem('rememberMe')
-    navigate('/login')
-  }
+  localStorage.removeItem('token')
+  localStorage.removeItem('user')
+  localStorage.removeItem('userType')
+  navigate('/login')
+}
 
   return (
     <div className={styles.jobseekerLayout}>

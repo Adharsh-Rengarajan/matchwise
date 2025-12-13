@@ -25,6 +25,19 @@ interface ValidationError {
   url?: string
 }
 
+interface FormValidationErrors {
+  name?: string
+  email?: string
+  phone?: string
+  password?: string
+  confirmPassword?: string
+  company?: string
+  designation?: string
+  skills?: string
+  experience?: string
+  education?: string
+}
+
 const formatValidationErrors = (detail: ValidationError[] | string): string => {
   if (typeof detail === 'string') {
     return detail
@@ -43,6 +56,7 @@ const Register = () => {
   const [userType, setUserType] = useState<'recruiter' | 'jobseeker'>('recruiter')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [validationErrors, setValidationErrors] = useState<FormValidationErrors>({})
   
   const [formData, setFormData] = useState({
     email: '',
@@ -74,24 +88,209 @@ const Register = () => {
     end_date: ''
   })
 
+  const [experienceError, setExperienceError] = useState('')
+  const [educationError, setEducationError] = useState('')
+
+  const getTodayDate = () => {
+    const today = new Date()
+    return today.toISOString().split('T')[0]
+  }
+
+  const validatePassword = (password: string): string | null => {
+    if (!password) {
+      return 'Password is required'
+    }
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters long'
+    }
+    if (!/[A-Z]/.test(password)) {
+      return 'Password must contain at least one uppercase letter'
+    }
+    if (!/[a-z]/.test(password)) {
+      return 'Password must contain at least one lowercase letter'
+    }
+    if (!/[0-9]/.test(password)) {
+      return 'Password must contain at least one number'
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      return 'Password must contain at least one special character'
+    }
+    return null
+  }
+
+  const validateEmail = (email: string): string | null => {
+    if (!email) {
+      return 'Email is required'
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return 'Please enter a valid email address'
+    }
+    return null
+  }
+
+  const validatePhone = (phone: string): string | null => {
+    if (!phone) {
+      return 'Phone is required'
+    }
+    const phoneRegex = /^[\d\s+()-]{10,}$/
+    if (!phoneRegex.test(phone)) {
+      return 'Please enter a valid phone number (at least 10 digits)'
+    }
+    return null
+  }
+
+  const validateForm = (): boolean => {
+    const errors: FormValidationErrors = {}
+    let hasError = false
+
+    if (!formData.name.trim()) {
+      errors.name = 'Name is required'
+      hasError = true
+    } else if (formData.name.trim().length < 2) {
+      errors.name = 'Name must be at least 2 characters'
+      hasError = true
+    }
+
+    const emailError = validateEmail(formData.email)
+    if (emailError) {
+      errors.email = emailError
+      hasError = true
+    }
+
+    const phoneError = validatePhone(formData.phone)
+    if (phoneError) {
+      errors.phone = phoneError
+      hasError = true
+    }
+
+    const passwordError = validatePassword(formData.password)
+    if (passwordError) {
+      errors.password = passwordError
+      hasError = true
+    }
+
+    if (!formData.confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password'
+      hasError = true
+    } else if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match'
+      hasError = true
+    }
+
+    if (userType === 'jobseeker') {
+      if (formData.skills.trim() && formData.skills.split(',').filter(s => s.trim()).length === 0) {
+        errors.skills = 'Please enter at least one valid skill'
+        hasError = true
+      }
+    }
+
+    setValidationErrors(errors)
+    return !hasError
+  }
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     })
+
+    if (validationErrors[name as keyof FormValidationErrors]) {
+      setValidationErrors({
+        ...validationErrors,
+        [name]: undefined
+      })
+    }
+
+    if (name === 'password' && validationErrors.confirmPassword && value === formData.confirmPassword) {
+      setValidationErrors({
+        ...validationErrors,
+        confirmPassword: undefined
+      })
+    }
+
+    if (name === 'confirmPassword' && validationErrors.confirmPassword && value === formData.password) {
+      setValidationErrors({
+        ...validationErrors,
+        confirmPassword: undefined
+      })
+    }
+  }
+
+  const validateExperienceDates = (): string | null => {
+    const today = getTodayDate()
+
+    if (!currentExperience.start_date) {
+      return 'Start date is required'
+    }
+
+    if (currentExperience.start_date > today) {
+      return 'Start date cannot be in the future'
+    }
+
+    if (currentExperience.end_date) {
+      if (currentExperience.end_date > today) {
+        return 'End date cannot be in the future'
+      }
+      if (currentExperience.end_date <= currentExperience.start_date) {
+        return 'End date must be after start date'
+      }
+    }
+
+    return null
+  }
+
+  const validateEducationDates = (): string | null => {
+    const today = getTodayDate()
+
+    if (!currentEducation.start_date) {
+      return 'Start date is required'
+    }
+
+    if (currentEducation.start_date > today) {
+      return 'Start date cannot be in the future'
+    }
+
+    if (currentEducation.end_date) {
+      if (currentEducation.end_date > today) {
+        return 'End date cannot be in the future'
+      }
+      if (currentEducation.end_date <= currentEducation.start_date) {
+        return 'End date must be after start date'
+      }
+    }
+
+    return null
   }
 
   const addExperience = () => {
-    if (currentExperience.title && currentExperience.company && currentExperience.start_date) {
-      setExperiences([...experiences, currentExperience])
-      setCurrentExperience({
-        title: '',
-        company: '',
-        start_date: '',
-        end_date: ''
-      })
-      setShowExperienceForm(false)
+    setExperienceError('')
+
+    if (!currentExperience.title.trim()) {
+      setExperienceError('Job title is required')
+      return
     }
+
+    if (!currentExperience.company.trim()) {
+      setExperienceError('Company name is required')
+      return
+    }
+
+    const dateError = validateExperienceDates()
+    if (dateError) {
+      setExperienceError(dateError)
+      return
+    }
+
+    setExperiences([...experiences, currentExperience])
+    setCurrentExperience({
+      title: '',
+      company: '',
+      start_date: '',
+      end_date: ''
+    })
+    setShowExperienceForm(false)
   }
 
   const removeExperience = (index: number) => {
@@ -99,16 +298,32 @@ const Register = () => {
   }
 
   const addEducation = () => {
-    if (currentEducation.degree && currentEducation.institution && currentEducation.start_date) {
-      setEducations([...educations, currentEducation])
-      setCurrentEducation({
-        degree: '',
-        institution: '',
-        start_date: '',
-        end_date: ''
-      })
-      setShowEducationForm(false)
+    setEducationError('')
+
+    if (!currentEducation.degree.trim()) {
+      setEducationError('Degree is required')
+      return
     }
+
+    if (!currentEducation.institution.trim()) {
+      setEducationError('Institution name is required')
+      return
+    }
+
+    const dateError = validateEducationDates()
+    if (dateError) {
+      setEducationError(dateError)
+      return
+    }
+
+    setEducations([...educations, currentEducation])
+    setCurrentEducation({
+      degree: '',
+      institution: '',
+      start_date: '',
+      end_date: ''
+    })
+    setShowEducationForm(false)
   }
 
   const removeEducation = (index: number) => {
@@ -118,12 +333,12 @@ const Register = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
+    setError('')
+    
+    if (!validateForm()) {
       return
     }
 
-    setError('')
     setIsLoading(true)
 
     try {
@@ -180,6 +395,17 @@ const Register = () => {
     }
   }
 
+  const errorStyle = {
+    color: '#ef4444',
+    fontSize: '0.875rem',
+    marginTop: '0.25rem',
+    display: 'block'
+  }
+
+  const inputErrorStyle = {
+    borderColor: '#ef4444'
+  }
+
   return (
     <div className={styles.registerPage}>
       <Link to="/" className={styles.backHomeLink}>
@@ -221,7 +447,7 @@ const Register = () => {
           
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label htmlFor="name">Full Name</label>
+              <label htmlFor="name">Full Name *</label>
               <input
                 type="text"
                 id="name"
@@ -229,12 +455,16 @@ const Register = () => {
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="John Doe"
+                style={validationErrors.name ? inputErrorStyle : {}}
                 required
               />
+              {validationErrors.name && (
+                <span style={errorStyle}>{validationErrors.name}</span>
+              )}
             </div>
             
             <div className={styles.formGroup}>
-              <label htmlFor="phone">Phone</label>
+              <label htmlFor="phone">Phone *</label>
               <input
                 type="tel"
                 id="phone"
@@ -242,13 +472,17 @@ const Register = () => {
                 value={formData.phone}
                 onChange={handleInputChange}
                 placeholder="+1 234 567 8900"
+                style={validationErrors.phone ? inputErrorStyle : {}}
                 required
               />
+              {validationErrors.phone && (
+                <span style={errorStyle}>{validationErrors.phone}</span>
+              )}
             </div>
           </div>
           
           <div className={styles.formGroup}>
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">Email *</label>
             <input
               type="email"
               id="email"
@@ -256,13 +490,17 @@ const Register = () => {
               value={formData.email}
               onChange={handleInputChange}
               placeholder="your@email.com"
+              style={validationErrors.email ? inputErrorStyle : {}}
               required
             />
+            {validationErrors.email && (
+              <span style={errorStyle}>{validationErrors.email}</span>
+            )}
           </div>
           
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">Password *</label>
               <input
                 type="password"
                 id="password"
@@ -270,12 +508,19 @@ const Register = () => {
                 value={formData.password}
                 onChange={handleInputChange}
                 placeholder="••••••••"
+                style={validationErrors.password ? inputErrorStyle : {}}
                 required
               />
+              {validationErrors.password && (
+                <span style={errorStyle}>{validationErrors.password}</span>
+              )}
+              <small className={styles.passwordHint}>
+                Must be 8+ characters with uppercase, lowercase, number, and special character
+              </small>
             </div>
             
             <div className={styles.formGroup}>
-              <label htmlFor="confirmPassword">Confirm Password</label>
+              <label htmlFor="confirmPassword">Confirm Password *</label>
               <input
                 type="password"
                 id="confirmPassword"
@@ -283,8 +528,12 @@ const Register = () => {
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
                 placeholder="••••••••"
+                style={validationErrors.confirmPassword ? inputErrorStyle : {}}
                 required
               />
+              {validationErrors.confirmPassword && (
+                <span style={errorStyle}>{validationErrors.confirmPassword}</span>
+              )}
             </div>
           </div>
           
@@ -325,7 +574,11 @@ const Register = () => {
                   value={formData.skills}
                   onChange={handleInputChange}
                   placeholder="React, TypeScript, Node.js"
+                  style={validationErrors.skills ? inputErrorStyle : {}}
                 />
+                {validationErrors.skills && (
+                  <span style={errorStyle}>{validationErrors.skills}</span>
+                )}
               </div>
               
               <div className={styles.formSection}>
@@ -334,7 +587,10 @@ const Register = () => {
                   <button
                     type="button"
                     className={styles.addBtn}
-                    onClick={() => setShowExperienceForm(!showExperienceForm)}
+                    onClick={() => {
+                      setShowExperienceForm(!showExperienceForm)
+                      setExperienceError('')
+                    }}
                   >
                     {showExperienceForm ? 'Cancel' : '+ Add'}
                   </button>
@@ -342,29 +598,35 @@ const Register = () => {
                 
                 {showExperienceForm && (
                   <div className={styles.subForm}>
+                    {experienceError && (
+                      <div style={{...errorStyle, marginBottom: '0.5rem'}}>{experienceError}</div>
+                    )}
                     <input
                       type="text"
                       value={currentExperience.title}
                       onChange={(e) => setCurrentExperience({...currentExperience, title: e.target.value})}
-                      placeholder="Job Title"
+                      placeholder="Job Title *"
                     />
                     <input
                       type="text"
                       value={currentExperience.company}
                       onChange={(e) => setCurrentExperience({...currentExperience, company: e.target.value})}
-                      placeholder="Company Name"
+                      placeholder="Company Name *"
                     />
                     <div className={styles.dateRow}>
                       <input
                         type="date"
                         value={currentExperience.start_date}
                         onChange={(e) => setCurrentExperience({...currentExperience, start_date: e.target.value})}
-                        placeholder="Start Date"
+                        max={getTodayDate()}
+                        placeholder="Start Date *"
                       />
                       <input
                         type="date"
                         value={currentExperience.end_date}
                         onChange={(e) => setCurrentExperience({...currentExperience, end_date: e.target.value})}
+                        max={getTodayDate()}
+                        min={currentExperience.start_date || ''}
                         placeholder="End Date"
                       />
                     </div>
@@ -402,7 +664,10 @@ const Register = () => {
                   <button
                     type="button"
                     className={styles.addBtn}
-                    onClick={() => setShowEducationForm(!showEducationForm)}
+                    onClick={() => {
+                      setShowEducationForm(!showEducationForm)
+                      setEducationError('')
+                    }}
                   >
                     {showEducationForm ? 'Cancel' : '+ Add'}
                   </button>
@@ -410,29 +675,35 @@ const Register = () => {
                 
                 {showEducationForm && (
                   <div className={styles.subForm}>
+                    {educationError && (
+                      <div style={{...errorStyle, marginBottom: '0.5rem'}}>{educationError}</div>
+                    )}
                     <input
                       type="text"
                       value={currentEducation.degree}
                       onChange={(e) => setCurrentEducation({...currentEducation, degree: e.target.value})}
-                      placeholder="Degree"
+                      placeholder="Degree *"
                     />
                     <input
                       type="text"
                       value={currentEducation.institution}
                       onChange={(e) => setCurrentEducation({...currentEducation, institution: e.target.value})}
-                      placeholder="Institution"
+                      placeholder="Institution *"
                     />
                     <div className={styles.dateRow}>
                       <input
                         type="date"
                         value={currentEducation.start_date}
                         onChange={(e) => setCurrentEducation({...currentEducation, start_date: e.target.value})}
-                        placeholder="Start Date"
+                        max={getTodayDate()}
+                        placeholder="Start Date *"
                       />
                       <input
                         type="date"
                         value={currentEducation.end_date}
                         onChange={(e) => setCurrentEducation({...currentEducation, end_date: e.target.value})}
+                        max={getTodayDate()}
+                        min={currentEducation.start_date || ''}
                         placeholder="End Date"
                       />
                     </div>
