@@ -6,21 +6,29 @@ from app.middleware.auth_middleware import require_auth
 
 router = APIRouter(prefix="/messages", tags=["Messages"])
 
+
 @router.post("/", dependencies=[Depends(require_auth())])
 async def send_message(payload: MessageSchema):
     try:
-        saved = await MessageService.send_message(payload.dict())
+        saved = await MessageService.send_message(payload.model_dump())
         return api_response(201, "Message sent", saved)
     except Exception as e:
         raise HTTPException(500, f"Error sending message: {str(e)}")
 
-@router.get("/{user1}/{user2}", dependencies=[Depends(require_auth())])
-async def get_conversation(user1: str, user2: str):
+
+# ---- Literal-prefixed routes MUST be declared before /{user1}/{user2} ----
+# Otherwise "/messages/recruiter/<id>" matches the two-param catch-all with
+# user1="recruiter", and the conversations endpoints become unreachable.
+
+@router.get("/conversations/{user_id}", dependencies=[Depends(require_auth())])
+async def get_user_conversations(user_id: str):
+    """Conversation list for any authenticated user (recruiter or job seeker)."""
     try:
-        msgs = await MessageService.get_conversation(user1, user2)
-        return api_response(200, "Conversation retrieved", msgs)
+        conversations = await MessageService.get_conversations_for_user(user_id)
+        return api_response(200, "Conversations retrieved", conversations)
     except Exception as e:
-        raise HTTPException(500, f"Error retrieving conversation: {str(e)}")
+        raise HTTPException(500, f"Error retrieving conversations: {str(e)}")
+
 
 @router.get("/recruiter/{recruiter_id}", dependencies=[Depends(require_auth(["recruiter"]))])
 async def get_recruiter_conversations(recruiter_id: str):
@@ -30,18 +38,29 @@ async def get_recruiter_conversations(recruiter_id: str):
     except Exception as e:
         raise HTTPException(500, f"Error retrieving conversations: {str(e)}")
 
+
 @router.patch("/mark-read", dependencies=[Depends(require_auth())])
 async def mark_as_read(payload: dict = Body(...)):
     try:
         sender_id = payload.get("sender_id")
         receiver_id = payload.get("receiver_id")
-        
+
         if not sender_id or not receiver_id:
             raise HTTPException(400, "sender_id and receiver_id are required")
-        
+
         result = await MessageService.mark_messages_as_read(sender_id, receiver_id)
         return api_response(200, "Messages marked as read", result)
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(500, f"Error marking messages as read: {str(e)}")
+
+
+# Catch-all conversation fetch — keep LAST.
+@router.get("/{user1}/{user2}", dependencies=[Depends(require_auth())])
+async def get_conversation(user1: str, user2: str):
+    try:
+        msgs = await MessageService.get_conversation(user1, user2)
+        return api_response(200, "Conversation retrieved", msgs)
+    except Exception as e:
+        raise HTTPException(500, f"Error retrieving conversation: {str(e)}")

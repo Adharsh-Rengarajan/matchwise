@@ -250,19 +250,19 @@ const ApplicationDetail = () => {
 
     setIsSendingReachOut(true)
     try {
-      const response = await apiRequest(API_ENDPOINTS.SEND_MESSAGE, {
-        method: 'POST',
-        body: JSON.stringify({
-          sender_id: user.id,
-          receiver_id: jobseeker?.userId,
-          content: reachOutText,
-          message_type: 'text',
-          job_context: job?.id,
-          application_id: applicationId,
-          isOpened: false
-        })
+     const response = await apiRequest(API_ENDPOINTS.SEND_MESSAGE, {
+      method: 'POST',
+      body: JSON.stringify({
+        sender_id: user.id || user._id,
+        receiver_id: application?.jobseeker_id || jobseeker?.userId,
+        content: reachOutText,
+        message_type: 'text',
+        job_context: job?.id,
+        application_id: applicationId,
+        isOpened: false
       })
-
+    })
+   
       if (response.ok) {
         setReachOutText('')
         setShowReachOutModal(false)

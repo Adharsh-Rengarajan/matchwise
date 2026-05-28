@@ -39,6 +39,9 @@ export const API_ENDPOINTS = {
   SEND_MESSAGE: `${API_BASE_URL}/messages/`,
   GET_CONVERSATION: (u1: string, u2: string) =>
     `${API_BASE_URL}/messages/${u1}/${u2}`,
+  // Conversation list for any user (recruiter or job seeker)
+  GET_USER_CONVERSATIONS: (id: string) =>
+    `${API_BASE_URL}/messages/conversations/${id}`,
   GET_RECRUITER_CONVERSATIONS: (id: string) =>
     `${API_BASE_URL}/messages/recruiter/${id}`,
   MARK_MESSAGES_READ: `${API_BASE_URL}/messages/mark-read`,

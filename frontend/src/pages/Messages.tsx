@@ -3,9 +3,10 @@ import styles from '../styles/messages.module.css'
 import { API_ENDPOINTS, apiRequest } from '../config/api'
 
 interface Conversation {
-  _id: string
+  participantId: string
   participantName: string
   jobTitle?: string
+  company?: string
   lastMessage: string
   timestamp: string
   unreadCount: number
@@ -13,7 +14,7 @@ interface Conversation {
 }
 
 interface Message {
-  _id: string
+  id: string
   sender_id: string
   receiver_id: string
   content: string
@@ -29,7 +30,7 @@ interface SendMessageParams {
 
 const Messages = () => {
   const [conversations, setConversations] = useState<Conversation[]>([])
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
+  const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [messageInput, setMessageInput] = useState('')
   const [loading, setLoading] = useState(true)
@@ -44,11 +45,11 @@ const Messages = () => {
   }, [])
 
   useEffect(() => {
-    if (selectedConversationId) {
-      fetchMessages(selectedConversationId)
-      markAsRead(selectedConversationId)
+    if (selectedParticipantId) {
+      fetchMessages(selectedParticipantId)
+      markAsRead(selectedParticipantId)
     }
-  }, [selectedConversationId])
+  }, [selectedParticipantId])
 
   useEffect(() => {
     scrollToBottom()
@@ -56,62 +57,43 @@ const Messages = () => {
 
   const generateColorFromString = (str: string): string => {
     const colors = [
-      '#3B82F6',
-      '#EF4444',
-      '#10B981',
-      '#F59E0B',
-      '#8B5CF6',
-      '#EC4899',
-      '#06B6D4',
-      '#F97316'
+      '#3B82F6', '#EF4444', '#10B981', '#F59E0B',
+      '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'
     ]
     if (!str) return colors[0]
     const hash = str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
     return colors[hash % colors.length]
   }
 
-  const extractParticipantName = (conv: any): string => {
-    if (conv.participantName && conv.participantName.trim()) {
-      return conv.participantName
-    }
-    if (conv.jobseekerData?.[0]?.full_name) {
-      return conv.jobseekerData[0].full_name
-    }
-    if (conv.recruiterData?.[0]?.full_name) {
-      return conv.recruiterData[0].full_name
-    }
-    if (conv.full_name && conv.full_name.trim()) {
-      return conv.full_name
-    }
-    return 'Unknown'
-  }
-
   const fetchConversations = async () => {
     try {
       setLoading(true)
-      const response = await apiRequest(API_ENDPOINTS.GET_RECRUITER_CONVERSATIONS(userId))
+      const response = await apiRequest(API_ENDPOINTS.GET_USER_CONVERSATIONS(userId))
       const data = await response.json()
 
       const conversationList: Conversation[] = (data.data || []).map((conv: any) => {
-        const participantName = extractParticipantName(conv)
+        const participantName =
+          conv.participantName && conv.participantName.trim()
+            ? conv.participantName
+            : 'Unknown'
         const lastMsg = conv.lastMessage?.trim() ? conv.lastMessage : 'No messages yet'
-        const jobTitle = conv.jobTitle || ''
 
         return {
-          _id: conv._id,
+          participantId: conv.participantId,
           participantName,
-          jobTitle,
+          jobTitle: conv.jobTitle || '',
+          company: conv.company || '',
           lastMessage: lastMsg,
           timestamp: conv.timestamp || new Date().toISOString(),
           unreadCount: conv.unreadCount || 0,
-          avatarColor: generateColorFromString(participantName)
+          avatarColor: conv.avatarColor || generateColorFromString(participantName)
         }
       })
 
       setConversations(conversationList)
-      setLoading(false)
     } catch (error) {
       console.error('Error fetching conversations:', error)
+    } finally {
       setLoading(false)
     }
   }
@@ -130,10 +112,7 @@ const Messages = () => {
     try {
       await apiRequest(API_ENDPOINTS.MARK_MESSAGES_READ, {
         method: 'PATCH',
-        body: JSON.stringify({
-          sender_id: otherUserId,
-          receiver_id: userId
-        })
+        body: JSON.stringify({ sender_id: otherUserId, receiver_id: userId })
       })
     } catch (error) {
       console.error('Error marking as read:', error)
@@ -152,11 +131,7 @@ const Messages = () => {
           isOpened: false
         })
       })
-
-      if (response.ok) {
-        return { success: true }
-      }
-      return { success: false }
+      return { success: response.ok }
     } catch (error) {
       console.error('Error sending message:', error)
       return { success: false }
@@ -164,21 +139,18 @@ const Messages = () => {
   }
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedConversationId) return
-
-    const selected = conversations.find(c => c._id === selectedConversationId)
-    if (!selected) return
+    if (!messageInput.trim() || !selectedParticipantId) return
 
     const result = await sendMessage({
       sender_id: userId,
-      receiver_id: selected._id,
-      content: messageInput
+      receiver_id: selectedParticipantId,
+      content: messageInput.trim()
     })
 
     if (result.success) {
       setMessageInput('')
-      fetchMessages(selected._id)
-      fetchConversations()
+      await fetchMessages(selectedParticipantId)
+      await fetchConversations()
     }
   }
 
@@ -197,12 +169,9 @@ const Messages = () => {
     c.participantName.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const selected = conversations.find(c => c._id === selectedConversationId)
+  const selected = conversations.find(c => c.participantId === selectedParticipantId)
 
-  const totalUnreadCount = conversations.reduce(
-    (sum, conv) => sum + conv.unreadCount,
-    0
-  )
+  const totalUnreadCount = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0)
 
   return (
     <div className={styles.messagesContainer}>
@@ -228,22 +197,17 @@ const Messages = () => {
 
         <div className={styles.conversationsList}>
           {loading ? (
-            <div className={styles.loadingState}>
-              <p>Loading...</p>
-            </div>
+            <div className={styles.loadingState}><p>Loading...</p></div>
           ) : filtered.length > 0 ? (
             filtered.map((conv) => (
               <div
-                key={conv._id}
+                key={conv.participantId}
                 className={`${styles.conversationItem} ${
-                  selectedConversationId === conv._id ? styles.active : ''
+                  selectedParticipantId === conv.participantId ? styles.active : ''
                 }`}
-                onClick={() => setSelectedConversationId(conv._id)}
+                onClick={() => setSelectedParticipantId(conv.participantId)}
               >
-                <div
-                  className={styles.avatar}
-                  style={{ backgroundColor: conv.avatarColor }}
-                >
+                <div className={styles.avatar} style={{ backgroundColor: conv.avatarColor }}>
                   {conv.participantName.charAt(0).toUpperCase()}
                 </div>
                 <div className={styles.conversationInfo}>
@@ -276,10 +240,9 @@ const Messages = () => {
                 messages.map((msg) => {
                   const isSent = msg.sender_id === userId
                   const isUnopenedReceived = !isSent && !msg.isOpened
-
                   return (
                     <div
-                      key={msg._id}
+                      key={msg.id}
                       className={`${styles.messageBubble} ${isSent ? styles.sent : styles.received} ${
                         isUnopenedReceived ? styles.unopened : ''
                       }`}

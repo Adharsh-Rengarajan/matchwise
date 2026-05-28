@@ -90,11 +90,47 @@ class JobService:
         if not job:
             return []
 
-        applications = []
-        cursor = db.applications.find({"job_id": job_id}).sort(
-            "match_result.score", -1
-        )
-        async for app in cursor:
-            applications.append(sanitize_document(app))
+        # Enrich each application with the jobseeker's name/email via a lookup,
+        # so the client doesn't need a fragile per-candidate fetch.
+        # applications.jobseeker_id is a string; users._id is an ObjectId.
+        pipeline = [
+            {"$match": {"job_id": job_id}},
+            {"$sort": {"match_result.score": -1}},
+            {
+                "$lookup": {
+                    "from": "users",
+                    "let": {"jsid": "$jobseeker_id"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$eq": [
+                                        "$_id",
+                                        {
+                                            "$convert": {
+                                                "input": "$$jsid",
+                                                "to": "objectId",
+                                                "onError": None,
+                                                "onNull": None,
+                                            }
+                                        },
+                                    ]
+                                }
+                            }
+                        },
+                        {"$project": {"name": 1, "email": 1}},
+                    ],
+                    "as": "jobseeker_doc",
+                }
+            },
+            {
+                "$addFields": {
+                    "jobseeker_name": {"$arrayElemAt": ["$jobseeker_doc.name", 0]},
+                    "jobseeker_email": {"$arrayElemAt": ["$jobseeker_doc.email", 0]},
+                }
+            },
+            {"$project": {"jobseeker_doc": 0}},
+        ]
 
-        return applications
+        applications = await db.applications.aggregate(pipeline).to_list(None)
+        return [sanitize_document(app) for app in applications]

@@ -3,13 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { API_ENDPOINTS, apiRequest } from '../config/api'
 import styles from '../styles/top-candidates.module.css'
 
-interface JobseekerData {
-  userId?: string
-  id?: string
-  name: string
-  email: string
-}
-
 interface Candidate {
   id: string
   job_id: string
@@ -17,23 +10,16 @@ interface Candidate {
   resume_file_id: string
   application_status: string
   created_at: string
+  jobseeker_name?: string
+  jobseeker_email?: string
   match_result?: {
     score: number
-    skills_match?: string[]
-    experience_match?: string
-    education_match?: string
+    matched_skills?: string[]
+    missing_skills?: string[]
+    transferable_skills?: string[]
+    explanation?: string
   }
-  answers?: Array<{
-    questionNo: number
-    question: string
-    answer: string
-  }>
-  notes?: Array<{
-    recruiter_id: string
-    note: string
-    created_at: string
-  }>
-  jobseeker?: JobseekerData
+  answers?: Array<{ questionNo: number; question: string; answer: string }>
 }
 
 interface Job {
@@ -79,36 +65,8 @@ const TopCandidates = () => {
       }
 
       if (candidatesResponse.ok && candidatesData.data) {
-        const candidatesList = candidatesData.data
-
-        const candidatesWithJobseekerInfo = await Promise.all(
-          candidatesList.map(async (candidate: Candidate) => {
-            try {
-              const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
-              const jobseekerResponse = await apiRequest(`${baseUrl}/users/${candidate.jobseeker_id}`)
-
-              if (jobseekerResponse.ok) {
-                const jobseekerData = await jobseekerResponse.json()
-                if (jobseekerData.data) {
-                  return {
-                    ...candidate,
-                    jobseeker: {
-                      userId: jobseekerData.data.userId || jobseekerData.data.id,
-                      name: jobseekerData.data.name,
-                      email: jobseekerData.data.email
-                    }
-                  }
-                }
-              }
-              return candidate
-            } catch (error) {
-              console.error(`Failed to fetch jobseeker ${candidate.jobseeker_id}:`, error)
-              return candidate
-            }
-          })
-        )
-
-        setCandidates(candidatesWithJobseekerInfo)
+        // Name/email now arrive embedded on each application from the server.
+        setCandidates(candidatesData.data)
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -121,7 +79,9 @@ const TopCandidates = () => {
     let filtered = [...candidates]
 
     if (filterStatus !== 'all') {
-      filtered = filtered.filter(c => c.application_status?.toUpperCase() === filterStatus.toUpperCase())
+      filtered = filtered.filter(
+        c => c.application_status?.toUpperCase() === filterStatus.toUpperCase()
+      )
     }
 
     filtered.sort((a, b) => {
@@ -137,12 +97,9 @@ const TopCandidates = () => {
   const handleStatusChange = async (candidateId: string, newStatus: string) => {
     setUpdatingCandidateId(candidateId)
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://matchwise-1wks.onrender.com'
-      const response = await apiRequest(`${baseUrl}/applications/${candidateId}/`, {
+      const response = await apiRequest(API_ENDPOINTS.UPDATE_APPLICATION_STATUS(candidateId), {
         method: 'PATCH',
-        body: JSON.stringify({
-          application_status: newStatus
-        })
+        body: JSON.stringify({ application_status: newStatus })
       })
 
       if (response.ok) {
@@ -165,21 +122,21 @@ const TopCandidates = () => {
   }
 
   const handleDownloadResume = async (fileId: string) => {
-  try {
-    const response = await apiRequest(API_ENDPOINTS.GET_RESUME(fileId))
-    if (response.ok) {
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `resume_${fileId}.pdf`
-      a.click()
-      window.URL.revokeObjectURL(url)
+    try {
+      const response = await apiRequest(API_ENDPOINTS.GET_RESUME(fileId))
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `resume_${fileId}.pdf`
+        a.click()
+        window.URL.revokeObjectURL(url)
+      }
+    } catch (error) {
+      console.error('Failed to download resume:', error)
     }
-  } catch (error) {
-    console.error('Failed to download resume:', error)
   }
-}
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return '#10b981'
@@ -191,30 +148,18 @@ const TopCandidates = () => {
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString)
-
-      if (isNaN(date.getTime())) {
-        return 'N/A'
-      }
+      if (isNaN(date.getTime())) return 'N/A'
 
       const now = new Date()
       const diffInMs = now.getTime() - date.getTime()
-
-      if (diffInMs < 0) {
-        return 'Just now'
-      }
+      if (diffInMs < 0) return 'Just now'
 
       const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
       const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
 
-      if (diffInHours < 1) {
-        return 'Just now'
-      }
-      if (diffInHours < 24) {
-        return `${diffInHours}h ago`
-      }
-      if (diffInDays < 7) {
-        return `${diffInDays}d ago`
-      }
+      if (diffInHours < 1) return 'Just now'
+      if (diffInHours < 24) return `${diffInHours}h ago`
+      if (diffInDays < 7) return `${diffInDays}d ago`
 
       return date.toLocaleDateString('en-US', {
         month: 'short',
@@ -286,11 +231,14 @@ const TopCandidates = () => {
             <div key={candidate.id} className={styles.candidateCard}>
               <div className={styles.cardHeader}>
                 <div className={styles.candidateInfo}>
-                  <h3 className={styles.candidateName}>{candidate.jobseeker?.name || 'N/A'}</h3>
-                  <p className={styles.candidateEmail}>{candidate.jobseeker?.email || 'N/A'}</p>
+                  <h3 className={styles.candidateName}>{candidate.jobseeker_name || 'Unknown candidate'}</h3>
+                  <p className={styles.candidateEmail}>{candidate.jobseeker_email || '—'}</p>
                   <p className={styles.applicationDate}>{formatDate(candidate.created_at)}</p>
                 </div>
-                <div className={styles.scoreCircle} style={{ backgroundColor: getScoreColor(candidate.match_result?.score || 0) }}>
+                <div
+                  className={styles.scoreCircle}
+                  style={{ backgroundColor: getScoreColor(candidate.match_result?.score || 0) }}
+                >
                   <span className={styles.scoreValue}>{Math.round(candidate.match_result?.score || 0)}%</span>
                 </div>
               </div>
@@ -313,20 +261,13 @@ const TopCandidates = () => {
                     <option value="REJECTED">Rejected</option>
                   </select>
                 </div>
-
               </div>
-              
+
               <div className={styles.cardFooter}>
-                <button
-                  className={styles.btnPrimary}
-                  onClick={() => handleViewApplication(candidate.id)}
-                >
+                <button className={styles.btnPrimary} onClick={() => handleViewApplication(candidate.id)}>
                   View Details
                 </button>
-                <button
-                  className={styles.btnSecondary}
-                  onClick={() => handleDownloadResume(candidate.resume_file_id)}
-                >
+                <button className={styles.btnSecondary} onClick={() => handleDownloadResume(candidate.resume_file_id)}>
                   Download Resume
                 </button>
               </div>

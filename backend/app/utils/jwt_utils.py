@@ -3,9 +3,20 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    # Allow a throwaway secret only for local/CI test runs; never in real envs.
+    if os.getenv("TESTING") == "true":
+        SECRET_KEY = "test-only-secret-do-not-use-in-production"
+    else:
+        raise RuntimeError(
+            "JWT_SECRET_KEY environment variable is not set. "
+            "Refusing to start with an insecure default secret."
+        )
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -16,6 +27,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
 
 def verify_token(token: str):
     try:

@@ -1,72 +1,48 @@
 import { useState, useEffect, useRef } from 'react'
 import styles from '../styles/jobseeker-messages.module.css'
+import { API_ENDPOINTS, apiRequest } from '../config/api'
+
+interface Conversation {
+  participantId: string
+  participantName: string
+  company?: string
+  jobTitle?: string
+  lastMessage: string
+  timestamp: string
+  unreadCount: number
+  avatarColor: string
+}
 
 interface Message {
   id: string
   sender_id: string
   receiver_id: string
   content: string
-  timestamp: string
-  is_read: boolean
-  sender_type: 'jobseeker' | 'recruiter'
-}
-
-interface Conversation {
-  id: string
-  recruiter_id: string
-  recruiter_name: string
-  company: string
-  job_title: string
-  last_message: string
-  last_message_time: string
-  unread_count: number
+  created_at: string
+  isOpened: boolean
 }
 
 const JobSeekerMessages = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const userId = user._id || user.id
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
-  const [conversations, setConversations] = useState<Conversation[]>([
-    {
-      id: '1',
-      recruiter_id: 'rec1',
-      recruiter_name: 'Sarah Johnson',
-      company: 'TechCorp',
-      job_title: 'Senior Frontend Developer',
-      last_message: 'Thank you for applying. Your profile looks impressive.',
-      last_message_time: '10:32 AM',
-      unread_count: 0
-    },
-    {
-      id: '2',
-      recruiter_id: 'rec2',
-      recruiter_name: 'Michael Chen',
-      company: 'StartupXYZ',
-      job_title: 'React Developer',
-      last_message: 'Would you be available for a technical interview next week?',
-      last_message_time: '2m ago',
-      unread_count: 1
-    },
-    {
-      id: '3',
-      recruiter_id: 'rec3',
-      recruiter_name: 'Emily Rodriguez',
-      company: 'Digital Solutions',
-      job_title: 'Full Stack Engineer',
-      last_message: 'We received your application and will review it soon.',
-      last_message_time: '1h ago',
-      unread_count: 0
-    }
-  ])
+  const [conversations, setConversations] = useState<Conversation[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [loading, setLoading] = useState(true)
   const [showAISuggestions, setShowAISuggestions] = useState(false)
 
   useEffect(() => {
+    fetchConversations()
+  }, [])
+
+  useEffect(() => {
     if (selectedConversation) {
-      loadMessages(selectedConversation.id)
-      markAsRead(selectedConversation.id)
+      fetchMessages(selectedConversation.participantId)
+      markAsRead(selectedConversation.participantId)
     }
   }, [selectedConversation])
 
@@ -74,98 +50,84 @@ const JobSeekerMessages = () => {
     scrollToBottom()
   }, [messages])
 
-  const loadMessages = (conversationId: string) => {
-    const mockMessages: Message[] = [
-      {
-        id: '1',
-        sender_id: user.id,
-        receiver_id: selectedConversation?.recruiter_id || 'rec1',
-        content: 'Hi! I applied for the Senior Frontend Developer position.',
-        timestamp: '10:30 AM',
-        is_read: true,
-        sender_type: 'jobseeker'
-      },
-      {
-        id: '2',
-        sender_id: selectedConversation?.recruiter_id || 'rec1',
-        receiver_id: user.id,
-        content: 'Hello! Thank you for applying. Your profile looks impressive.',
-        timestamp: '10:32 AM',
-        is_read: true,
-        sender_type: 'recruiter'
-      },
-      {
-        id: '3',
-        sender_id: user.id,
-        receiver_id: selectedConversation?.recruiter_id || 'rec1',
-        content: 'Thank you! I have 7 years of experience with React and TypeScript.',
-        timestamp: '10:35 AM',
-        is_read: true,
-        sender_type: 'jobseeker'
-      },
-      {
-        id: '4',
-        sender_id: selectedConversation?.recruiter_id || 'rec1',
-        receiver_id: user.id,
-        content: 'Great! Would you be available for a technical interview next week?',
-        timestamp: '10:40 AM',
-        is_read: true,
-        sender_type: 'recruiter'
-      },
-      {
-        id: '5',
-        sender_id: user.id,
-        receiver_id: selectedConversation?.recruiter_id || 'rec1',
-        content: 'Yes, I am available. What day works best for you?',
-        timestamp: '10:42 AM',
-        is_read: true,
-        sender_type: 'jobseeker'
-      },
-      {
-        id: '6',
-        sender_id: user.id,
-        receiver_id: selectedConversation?.recruiter_id || 'rec1',
-        content: 'Thank you for considering my application!',
-        timestamp: '10:45 AM',
-        is_read: true,
-        sender_type: 'jobseeker'
-      }
-    ]
-    setMessages(mockMessages)
+  const fetchConversations = async () => {
+    try {
+      setLoading(true)
+      const response = await apiRequest(API_ENDPOINTS.GET_USER_CONVERSATIONS(userId))
+      const data = await response.json()
+
+      const list: Conversation[] = (data.data || []).map((conv: any) => ({
+        participantId: conv.participantId,
+        participantName:
+          conv.participantName && conv.participantName.trim()
+            ? conv.participantName
+            : 'Recruiter',
+        company: conv.company || '',
+        jobTitle: conv.jobTitle || '',
+        lastMessage: conv.lastMessage?.trim() ? conv.lastMessage : 'No messages yet',
+        timestamp: conv.timestamp || new Date().toISOString(),
+        unreadCount: conv.unreadCount || 0,
+        avatarColor: conv.avatarColor || '#6366f1'
+      }))
+
+      setConversations(list)
+    } catch (error) {
+      console.error('Error fetching conversations:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const markAsRead = (conversationId: string) => {
-    setConversations(conversations.map(conv =>
-      conv.id === conversationId ? { ...conv, unread_count: 0 } : conv
-    ))
+  const fetchMessages = async (otherUserId: string) => {
+    try {
+      const response = await apiRequest(API_ENDPOINTS.GET_CONVERSATION(userId, otherUserId))
+      const data = await response.json()
+      setMessages(data.data || [])
+    } catch (error) {
+      console.error('Error fetching messages:', error)
+    }
   }
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const markAsRead = async (otherUserId: string) => {
+    try {
+      await apiRequest(API_ENDPOINTS.MARK_MESSAGES_READ, {
+        method: 'PATCH',
+        body: JSON.stringify({ sender_id: otherUserId, receiver_id: userId })
+      })
+      setConversations(prev =>
+        prev.map(c => (c.participantId === otherUserId ? { ...c, unreadCount: 0 } : c))
+      )
+    } catch (error) {
+      console.error('Error marking as read:', error)
+    }
   }
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return
 
-    const message: Message = {
-      id: Date.now().toString(),
-      sender_id: user.id,
-      receiver_id: selectedConversation.recruiter_id,
-      content: newMessage,
-      timestamp: 'Now',
-      is_read: false,
-      sender_type: 'jobseeker'
-    }
-
-    setMessages([...messages, message])
+    const content = newMessage.trim()
     setNewMessage('')
     setShowAISuggestions(false)
 
-    setConversations(conversations.map(conv =>
-      conv.id === selectedConversation.id
-        ? { ...conv, last_message: newMessage, last_message_time: 'Now' }
-        : conv
-    ))
+    try {
+      const response = await apiRequest(API_ENDPOINTS.SEND_MESSAGE, {
+        method: 'POST',
+        body: JSON.stringify({
+          sender_id: userId,
+          receiver_id: selectedConversation.participantId,
+          content,
+          message_type: 'text',
+          isOpened: false
+        })
+      })
+
+      if (response.ok) {
+        await fetchMessages(selectedConversation.participantId)
+        await fetchConversations()
+      }
+    } catch (error) {
+      console.error('Error sending message:', error)
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -175,8 +137,17 @@ const JobSeekerMessages = () => {
     }
   }
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase()
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const getInitials = (name: string) =>
+    name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+
+  const formatTime = (iso: string) => {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
   }
 
   const aiSuggestions = [
@@ -187,9 +158,9 @@ const JobSeekerMessages = () => {
   ]
 
   const filteredConversations = conversations.filter(conv =>
-    conv.recruiter_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.job_title.toLowerCase().includes(searchQuery.toLowerCase())
+    conv.participantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (conv.company || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (conv.jobTitle || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
@@ -212,28 +183,42 @@ const JobSeekerMessages = () => {
           </div>
 
           <div className={styles.conversationsList}>
-            {filteredConversations.map((conv) => (
-              <div
-                key={conv.id}
-                className={`${styles.conversationItem} ${selectedConversation?.id === conv.id ? styles.active : ''}`}
-                onClick={() => setSelectedConversation(conv)}
-              >
-                <div className={styles.avatar}>
-                  {getInitials(conv.recruiter_name)}
-                </div>
-                <div className={styles.conversationInfo}>
-                  <div className={styles.conversationHeader}>
-                    <h4>{conv.recruiter_name}</h4>
-                    <span className={styles.time}>{conv.last_message_time}</span>
+            {loading ? (
+              <p style={{ padding: '1rem', color: '#6b7280' }}>Loading...</p>
+            ) : filteredConversations.length > 0 ? (
+              filteredConversations.map((conv) => (
+                <div
+                  key={conv.participantId}
+                  className={`${styles.conversationItem} ${
+                    selectedConversation?.participantId === conv.participantId ? styles.active : ''
+                  }`}
+                  onClick={() => setSelectedConversation(conv)}
+                >
+                  <div className={styles.avatar} style={{ backgroundColor: conv.avatarColor }}>
+                    {getInitials(conv.participantName)}
                   </div>
-                  <p className={styles.jobPosition}>{conv.job_title} at {conv.company}</p>
-                  <p className={styles.lastMessage}>{conv.last_message}</p>
+                  <div className={styles.conversationInfo}>
+                    <div className={styles.conversationHeader}>
+                      <h4>{conv.participantName}</h4>
+                      <span className={styles.time}>{formatTime(conv.timestamp)}</span>
+                    </div>
+                    {(conv.jobTitle || conv.company) && (
+                      <p className={styles.jobPosition}>
+                        {[conv.jobTitle, conv.company].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+                    <p className={styles.lastMessage}>{conv.lastMessage}</p>
+                  </div>
+                  {conv.unreadCount > 0 && (
+                    <div className={styles.unreadBadge}>{conv.unreadCount}</div>
+                  )}
                 </div>
-                {conv.unread_count > 0 && (
-                  <div className={styles.unreadBadge}>{conv.unread_count}</div>
-                )}
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={{ padding: '1rem', color: '#6b7280' }}>
+                {searchQuery ? 'No conversations found' : 'No conversations yet'}
+              </p>
+            )}
           </div>
         </div>
 
@@ -242,35 +227,52 @@ const JobSeekerMessages = () => {
             <>
               <div className={styles.chatHeader}>
                 <div className={styles.avatarSmall}>
-                  {getInitials(selectedConversation.recruiter_name)}
+                  {getInitials(selectedConversation.participantName)}
                 </div>
                 <div className={styles.headerInfo}>
-                  <h3>{selectedConversation.recruiter_name}</h3>
-                  <p>{selectedConversation.job_title} at {selectedConversation.company}</p>
+                  <h3>{selectedConversation.participantName}</h3>
+                  {(selectedConversation.jobTitle || selectedConversation.company) && (
+                    <p>
+                      {[selectedConversation.jobTitle, selectedConversation.company]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  )}
                 </div>
-                <button 
+                <button
                   className={styles.aiSuggestionsBtn}
                   onClick={() => setShowAISuggestions(!showAISuggestions)}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="#5b5fc7">
-                    <path d="M12 2L2 7L12 12L22 7L12 2ZM12 17L2 12V17L12 22L22 17V12L12 17Z"/>
+                    <path d="M12 2L2 7L12 12L22 7L12 2ZM12 17L2 12V17L12 22L22 17V12L12 17Z" />
                   </svg>
                   AI Suggestions
                 </button>
               </div>
 
               <div className={styles.messagesList}>
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`${styles.message} ${message.sender_type === 'jobseeker' ? styles.sent : styles.received}`}
-                  >
-                    <div className={styles.messageContent}>
-                      <p>{message.content}</p>
-                      <span className={styles.messageTime}>{message.timestamp}</span>
-                    </div>
-                  </div>
-                ))}
+                {messages.length > 0 ? (
+                  messages.map((message) => {
+                    const isSent = message.sender_id === userId
+                    return (
+                      <div
+                        key={message.id}
+                        className={`${styles.message} ${isSent ? styles.sent : styles.received}`}
+                      >
+                        <div className={styles.messageContent}>
+                          <p>{message.content}</p>
+                          <span className={styles.messageTime}>
+                            {formatTime(message.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <p style={{ textAlign: 'center', color: '#9ca3af', marginTop: '2rem' }}>
+                    No messages yet. Say hello!
+                  </p>
+                )}
                 <div ref={messagesEndRef} />
               </div>
 
@@ -309,7 +311,7 @@ const JobSeekerMessages = () => {
                   disabled={!newMessage.trim()}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                    <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z"/>
+                    <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" />
                   </svg>
                   Send
                 </button>
@@ -318,7 +320,7 @@ const JobSeekerMessages = () => {
           ) : (
             <div className={styles.noConversation}>
               <svg width="80" height="80" viewBox="0 0 24 24" fill="#d1d5db">
-                <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H6L4 18V4H20V16Z"/>
+                <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H6L4 18V4H20V16Z" />
               </svg>
               <h3>Select a conversation</h3>
               <p>Choose a conversation from the left to start messaging</p>
